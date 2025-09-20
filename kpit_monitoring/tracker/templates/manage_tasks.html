@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Tasks | KPIT Monitoring Tool{% endblock %}
+{% block page_title %}Manage Tasks{% endblock %}
+
+{% block content %}
+<a href="{% url 'add_task' %}" class="btn-add">+ Add Task</a>
+
+<div class="content">
+  <h2>All Tasks</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Task Name</th>
+        <th>Project</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks %}
+      <tr>
+        <td>{{ task.id }}</td>
+        <td>{{ task.task_name }}</td>
+        <td>
+          {% if task.project %}
+            {{ task.project.name }}
+          {% else %}
+            All Projects
+          {% endif %}
+        </td>
+        <td>
+          <a href="{% url 'edit_task' task.id %}" class="btn btn-edit">Edit</a>
+          <a href="{% url 'delete_task' task.id %}" class="btn btn-delete" onclick="return confirm('Are you sure you want to delete this task?');">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4">No tasks found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.content {
+  padding: 30px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  margin: 20px;
+}
+
+h2 {
+  margin-bottom: 20px;
+  color: #243b55;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+table th, table td {
+  border: 1px solid #ccc;
+  padding: 10px 15px;
+  text-align: left;
+}
+
+table th {
+  background: #243b55;
+  color: #fff;
+}
+
+table tr:nth-child(even) {
+  background: #f4f6f9;
+}
+
+/* Add Task button */
+.btn-add {
+  display: inline-block;
+  background: #00b894;
+  color: #fff;
+  padding: 12px 25px;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-bottom: 20px;
+  font-weight: bold;
+  transition: background 0.3s ease;
+}
+
+.btn-add:hover {
+  background: #019875;
+}
+
+/* Edit & Delete buttons */
+.btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+  margin-right: 5px;
+}
+
+.btn-edit {
+  background: #0984e3;
+}
+
+.btn-edit:hover {
+  background: #0571c5;
+}
+
+.btn-delete {
+  background: #d63031;
+}
+
+.btn-delete:hover {
+  background: #b52a27;
+}
+</style>
+{% endblock %}

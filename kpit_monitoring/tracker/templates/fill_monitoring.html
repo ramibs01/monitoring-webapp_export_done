@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Fill Monitoring{% endblock %}
+
+{% block content %}
+<div class="monitoring-container">
+  <h2>📝 Fill Monitoring</h2>
+
+  {% if error %}
+    <div class="error">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" class="monitoring-form">
+    {% csrf_token %}
+
+    <!-- Step 1: Select Month -->
+    <div class="form-group">
+      <label for="month-select">Month</label>
+      <select id="month-select" name="month" required>
+        <option value="">-- Select Month --</option>
+        {% for month in months %}
+          <option value="{{ month.id }}">{{ month.month }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Step 2: Select CW -->
+    <div id="cw-container" class="form-group" style="display:none;">
+      <label>Calendar Week</label>
+      <div class="cw-list">
+        {% for cw in cws %}
+          <label class="cw-item" data-month-id="{{ cw.month.id }}">
+            <input type="radio" name="cw" value="{{ cw.id }}" required>
+            <span>{{ cw.cw }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Step 3: Tasks table -->
+    <div id="tasks-container" style="display:none; margin-top:20px;">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Task</th>
+            <th>Hours Spent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+            <tr>
+              <td>{% if task.project %}{{ task.project.name }}{% else %}Common Task{% endif %}</td>
+              <td>{{ task.task_name }}</td>
+              <td>
+                <input type="number" step="0.1" min="0" name="hours_{{ task.id }}" class="hour-input" placeholder="0">
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="2" style="text-align:right; font-weight:bold;">Total Hours:</td>
+            <td id="total-hours">0</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <button type="submit" class="btn-submit">Submit Monitoring</button>
+  </form>
+</div>
+
+<script>
+const monthSelect = document.getElementById('month-select');
+const cwContainer = document.getElementById('cw-container');
+const cwItems = document.querySelectorAll('.cw-item');
+const tasksContainer = document.getElementById('tasks-container');
+const totalCell = document.getElementById('total-hours');
+
+// Show CWs for selected month
+monthSelect.addEventListener('change', () => {
+  const selectedMonth = monthSelect.value;
+  cwItems.forEach(cw => {
+    cw.style.display = cw.dataset.monthId === selectedMonth ? 'inline-flex' : 'none';
+    cw.querySelector('input[type="radio"]').checked = false;
+  });
+  cwContainer.style.display = selectedMonth ? 'block' : 'none';
+  tasksContainer.style.display = 'none';
+  totalCell.textContent = '0';
+});
+
+// Show tasks after CW selection
+cwItems.forEach(cw => {
+  const radio = cw.querySelector('input[type="radio"]');
+  radio.addEventListener('change', () => {
+    tasksContainer.style.display = 'block';
+  });
+});
+
+// Calculate total hours in real-time
+function updateTotal() {
+  let total = 0;
+  document.querySelectorAll('.hour-input').forEach(inp => {
+    const val = parseFloat(inp.value);
+    if (!isNaN(val)) total += val;
+  });
+  totalCell.textContent = total.toFixed(1);
+}
+
+document.addEventListener('input', e => {
+  if (e.target.classList.contains('hour-input')) {
+    updateTotal();
+  }
+});
+</script>
+
+<style>
+.monitoring-container {
+  max-width: 800px;
+  margin: auto;
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.monitoring-container h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.error {
+  background: #ffdddd;
+  color: #c0392b;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.monitoring-form .form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 6px;
+  color: #34495e;
+}
+
+select, input[type="number"] {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+.cw-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cw-item {
+  background: #ecf0f1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  align-items: center;
+  display: none;
+}
+
+.cw-item input { margin-right: 6px; }
+.cw-item:hover { background: #dcdde1; }
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.styled-table th, .styled-table td {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.styled-table th {
+  background: #00b894;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.styled-table tr:hover { background: #f9f9f9; }
+
+.total-row td {
+  background: #f1f2f6;
+  font-size: 15px;
+}
+
+.btn-submit {
+  display: block;
+  width: 100%;
+  background: #00b894;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  margin-top: 20px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.3s ease;
+}
+
+.btn-submit:hover { background: #019875; }
+</style>
+{% endblock %}

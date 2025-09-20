@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Employees | KPIT Monitoring Tool{% endblock %}
+{% block page_title %}Manage Employees{% endblock %}
+
+{% block content %}
+<a href="{% url 'add_employee' %}" class="btn-add">+ Add Employee</a>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for employee in employees %}
+    <tr>
+      <td>{{ employee.username }}</td>
+      <td>{{ employee.email }}</td>
+      <td>
+        <a href="{% url 'edit_employee' employee.id %}" class="btn btn-edit">Edit</a>
+        <a href="{% url 'delete_employee' employee.id %}" class="btn btn-delete" onclick="return confirm('Are you sure?');">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .btn-add { background: #00b894; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; display: inline-block; margin-bottom: 15px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
+  th, td { padding: 15px; text-align: left; }
+  th { background: #00b894; color: #fff; }
+  tr:nth-child(even) { background: #f2f2f2; }
+  .btn { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; color: #fff; }
+  .btn-edit { background: #0984e3; }
+  .btn-delete { background: #d63031; }
+</style>
+{% endblock %}

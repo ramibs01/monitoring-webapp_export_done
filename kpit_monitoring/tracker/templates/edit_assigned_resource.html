@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Resource | KPIT Monitoring Tool{% endblock %}
+{% block page_title %}Edit Resource{% endblock %}
+
+{% block content %}
+<div class="content">
+  <form method="POST">
+    {% csrf_token %}
+    <p>Employee</p>
+    <select name="employee" required>
+      {% for employee in employees %}
+      <option value="{{ employee.id }}" {% if employee.id == resource.employee.id %}selected{% endif %}>
+        {{ employee.username }}
+      </option>
+      {% endfor %}
+    </select>
+
+    <p>Project</p>
+    <select name="project" required>
+      {% for project in projects %}
+      <option value="{{ project.id }}" {% if project.id == resource.project.id %}selected{% endif %}>
+        {{ project.name }}
+      </option>
+      {% endfor %}
+    </select>
+
+    <p>Dedication (%)</p>
+    <input type="number" name="dedication" value="{{ resource.dedication }}" min="0" max="100" required>
+
+    <button type="submit">Update</button>
+    <a href="{% url 'manage_resources' %}" class="btn-cancel">Cancel</a>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.content { padding: 30px; max-width: 500px; margin: auto; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+form { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; }
+form p { margin-bottom: 5px; font-weight: bold; }
+input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; }
+button { background: #0984e3; color: #fff; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-size: 14px; margin-top: 10px; }
+a.btn-cancel { display: inline-block; background: #d63031; color: #fff; padding: 12px 25px; border-radius: 8px; text-decoration: none; margin-left: 10px; }
+</style>
+{% endblock %}

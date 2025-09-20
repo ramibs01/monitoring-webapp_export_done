@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Select Month & CW{% endblock %}
+{% block page_title %}Select Month & Calendar Week{% endblock %}
+
+{% block content %}
+<div class="content">
+  <form method="POST">
+    {% csrf_token %}
+
+    <p>Select Month:</p>
+    <select name="month" required id="month-select">
+      <option value="">-- Select Month --</option>
+      {% for month in months %}
+        <option value="{{ month.id }}">{{ month.month }}</option>
+      {% endfor %}
+    </select>
+
+    <p>Select CW:</p>
+    <div id="cw-container">
+      {% for cw in cws %}
+        <div class="cw-item" data-month-id="{{ cw.id_month_id }}" style="display:none;">
+          <label>
+            <input type="radio" name="cw" value="{{ cw.id }}"> {{ cw.cw }}
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+
+    <button type="submit">Next</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const monthSelect = document.getElementById('month-select');
+const cwItems = document.querySelectorAll('.cw-item');
+
+monthSelect.addEventListener('change', () => {
+  const selectedId = monthSelect.value;
+  cwItems.forEach(item => {
+    item.style.display = item.dataset.monthId === selectedId ? 'block' : 'none';
+  });
+});
+</script>
+{% endblock %}

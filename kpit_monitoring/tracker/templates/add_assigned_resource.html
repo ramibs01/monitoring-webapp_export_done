@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Add Resource | KPIT Monitoring Tool{% endblock %}
+{% block page_title %}Add Resource{% endblock %}
+
+{% block content %}
+<div class="content">
+  <form method="POST">
+    {% csrf_token %}
+    <h3>Assign Resource to Project</h3>
+
+    <p>Employee / Manager</p>
+    <select name="employee" required>
+      <option value="">Select Employee/Manager</option>
+      {% for user in employees %}
+        <option value="{{ user.id }}">{{ user.username }} ({{ user.role|title }})</option>
+      {% endfor %}
+    </select>
+
+    <p>Project</p>
+    <select name="project" required>
+      <option value="">Select Project</option>
+      {% for project in projects %}
+        <option value="{{ project.id }}">{{ project.name }}</option>
+      {% endfor %}
+    </select>
+
+    <p>Dedication (%)</p>
+    <input type="number" name="dedication" min="1" max="100" placeholder="Enter % dedication" required>
+
+    <button type="submit">Save</button>
+    <a href="{% url 'manage_resources' %}" class="btn-cancel">Cancel</a>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.content { 
+  padding: 30px; 
+  max-width: 500px; 
+  margin: auto; 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: center; 
+}
+form { 
+  background: #fff; 
+  padding: 25px; 
+  border-radius: 12px; 
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1); 
+  display: flex; 
+  flex-direction: column; 
+  gap: 15px; 
+}
+form h3 { margin-bottom: 10px; }
+form p { font-weight: bold; margin-bottom: 5px; }
+input, select { 
+  width: 100%; 
+  padding: 10px; 
+  border-radius: 8px; 
+  border: 1px solid #ccc; 
+  font-size: 14px; 
+}
+button { 
+  background: #00b894; 
+  color: #fff; 
+  border: none; 
+  padding: 12px 25px; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  font-size: 14px; 
+  margin-top: 10px; 
+}
+button:hover { background: #019875; }
+a.btn-cancel { 
+  display: inline-block; 
+  background: #d63031; 
+  color: #fff; 
+  padding: 12px 25px; 
+  border-radius: 8px; 
+  text-decoration: none; 
+  margin-left: 10px; 
+}
+</style>
+{% endblock %}

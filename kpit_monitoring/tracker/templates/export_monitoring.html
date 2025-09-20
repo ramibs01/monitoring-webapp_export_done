@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Export Monitoring{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>📤 Export Monitoring to Excel</h2>
+
+    {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="GET" class="export-form">
+        <div class="form-group">
+            <label for="month">Select Month:</label>
+            <select id="month" name="month" required>
+                <option value="">-- Select Month --</option>
+                {% for month in months %}
+                    <option value="{{ month.id }}">{{ month.month }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn-export">Export Excel</button>
+    </form>
+</div>
+
+<style>
+.container {
+    max-width: 500px;
+    margin: 50px auto;
+    padding: 30px 25px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #2c3e50;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: block;
+    color: #34495e;
+}
+
+select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+.btn-export {
+    background: #0984e3;
+    color: white;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+.btn-export:hover {
+    background: #0773c0;
+}
+
+.alert {
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+</style>
+{% endblock %}

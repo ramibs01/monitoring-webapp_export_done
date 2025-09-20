@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Consult Monitoring per CW{% endblock %}
+{% block page_title %}Consult Monitoring per CW{% endblock %}
+
+{% block content %}
+<div class="consult-cw-container">
+  <h2>Select a Calendar Week</h2>
+    <!-- Export button -->
+  <div class="export-container">
+    <a href="{% url 'export_monitoring_excel' %}" class="btn-export">📤 Export Monitoring</a>
+  </div>
+  <form method="get" class="cw-form">
+    <select name="cw" class="cw-select">
+      <option value="">-- Choose CW --</option>
+      {% for cw in cws %}
+        <option value="{{ cw.id }}" {% if cw.id|stringformat:"s" == selected_cw %}selected{% endif %}>
+          {{ cw.cw }}
+        </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn-view">View</button>
+  </form>
+
+  {% if has_entries %}
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Project</th>
+          <th>Task</th>
+          <th>Hours</th>
+          <th>Total Hours</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% if row.rowspan %}
+              <td rowspan="{{ row.rowspan }}">{{ row.entry.user.username }}</td>
+            {% endif %}
+            <td>
+              {% if row.entry.task.project %}
+                {{ row.entry.task.project.name }}
+              {% else %}
+                – 
+              {% endif %}
+            </td>
+            <td>{{ row.entry.task.task_name }}</td>
+            <td>{{ row.entry.hours_spent|floatformat:1 }}</td>
+            {% if row.rowspan %}
+              <td rowspan="{{ row.rowspan }}">{{ row.total_hours|floatformat:1 }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {% if selected_cw %}
+      <div class="no-data">No entries for this CW.</div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Container */
+.consult-cw-container {
+  background: #fff;
+  padding: 30px 35px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  max-width: 950px;
+  margin: 40px auto;
+  transition: all 0.3s ease;
+}
+
+/* Headings */
+.consult-cw-container h2 {
+  font-size: 22px;
+  margin-bottom: 25px;
+  color: #2c3e50;
+}
+
+/* Form */
+.cw-form {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+.cw-select {
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  min-width: 180px;
+  transition: border 0.3s ease;
+}
+.cw-select:focus { border-color: #00b894; outline: none; }
+.btn-view {
+  padding: 10px 24px;
+  font-size: 14px;
+  background: #00b894;
+  border: none;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+.btn-view:hover { background: #019170; transform: scale(1.05); }
+
+/* Table */
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  border: 1px solid #888; /* darker outer border */
+  margin-top: 10px;
+}
+.styled-table th,
+.styled-table td {
+  padding: 14px 16px;
+  border: 1px solid #888; /* darker cell borders */
+  text-align: center;
+}
+.styled-table thead {
+  background: #00b894;
+  color: #fff;
+  border-bottom: 2px solid #555; /* darker separation for header */
+}
+.styled-table tbody tr:hover {
+  background: #f9f9f9;
+  transition: background 0.2s ease;
+}
+.styled-table td[rowspan] {
+  background: #fafafa;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+/* No data */
+.no-data {
+  text-align: center;
+  padding: 20px;
+  background: #f8f8f8;
+  border-radius: 6px;
+  margin-top: 25px;
+  color: #777;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+/* Export Button Container */
+.export-container {
+  text-align: right;   /* aligns button to the right */
+  margin-bottom: 20px; /* space below container */
+}
+
+/* Export Button */
+.btn-export {
+  display: inline-block;
+  padding: 10px 22px;
+  font-size: 14px;
+  background: #00b894;       /* modern blue */
+  color: #fff;
+  text-decoration: none;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.btn-export:hover {
+  background: #00b894;       /* darker blue on hover */
+  transform: scale(1.05);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cw-form { flex-wrap: wrap; gap: 10px; }
+  .cw-select, .btn-view { width: 100%; }
+  .styled-table th, .styled-table td { font-size: 13px; padding: 10px; }
+}
+</style>
+{% endblock %}

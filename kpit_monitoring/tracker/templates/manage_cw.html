@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Manage Calendar Weeks | KPIT Monitoring Tool{% endblock %}
+{% block page_title %}Manage Calendar Weeks{% endblock %}
+
+{% block content %}
+<div class="content">
+  <form method="POST">
+    {% csrf_token %}
+    
+    <p>Select Month</p>
+    <select name="month_id" required>
+      <option value="">-- Select Month --</option>
+      {% for month in months %}
+      <option value="{{ month.id }}">{{ month.month }}</option>
+      {% endfor %}
+    </select>
+
+    <p>Select Calendar Weeks</p>
+    <select name="cw_ids" multiple required size="10">
+      {% for cw in calendar_weeks %}
+      <option value="{{ cw.id }}">
+        {{ cw.cw }} {% if cw.month %} (Assigned to {{ cw.month.month }}){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    <small>Hold CTRL (Windows) or CMD (Mac) to select multiple weeks</small>
+
+    <button type="submit">Assign CWs to Month</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.content {
+  padding: 30px;
+  max-width: 600px;
+  margin: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+form {
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+form p {
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+button {
+  background: #00b894;
+  color: #fff;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 10px;
+}
+</style>
+{% endblock %}

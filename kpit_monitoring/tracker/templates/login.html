@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login | KPIT Monitoring Tool</title>
+  <style>
+    /* General reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      overflow: hidden;
+    }
+
+    /* Floating circles for subtle animation */
+    .circle {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.07);
+      animation: float 12s infinite ease-in-out;
+    }
+    .circle.small { width: 80px; height: 80px; top: 10%; left: 15%; }
+    .circle.medium { width: 120px; height: 120px; bottom: 20%; right: 20%; }
+    .circle.large { width: 200px; height: 200px; top: 50%; left: 70%; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-25px); }
+    }
+
+    /* Login card */
+    .login-container {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 40px;
+      width: 350px;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      z-index: 2;
+    }
+
+    .login-container h1 {
+      font-size: 22px;
+      margin-bottom: 20px;
+      color: #00ff99;
+      letter-spacing: 1px;
+    }
+
+    .login-container h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #eee;
+      font-weight: 500;
+    }
+
+    .login-container label {
+      display: block;
+      text-align: left;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #ccc;
+    }
+
+    .login-container input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .login-container button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #00ff99, #00cc88);
+      color: #000;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.3s ease;
+    }
+
+    .login-container button:hover {
+      transform: translateY(-2px);
+      background: linear-gradient(135deg, #00cc88, #009966);
+    }
+
+    .error {
+      color: #ff5c5c;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Floating background circles -->
+  <div class="circle small"></div>
+  <div class="circle medium"></div>
+  <div class="circle large"></div>
+
+  <!-- Login box -->
+  <div class="login-container">
+    <h1>Security Monitoring Tool</h1>
+    <h2>Login</h2>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label>Username</label>
+      <input type="text" name="username" required>
+      <label>Password</label>
+      <input type="password" name="password" required>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+</body>
+</html>

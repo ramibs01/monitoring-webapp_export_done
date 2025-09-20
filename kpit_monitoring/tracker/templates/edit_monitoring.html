@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Monitoring{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Edit Monitoring</h2>
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label>Project</label>
+            <select name="project">
+                <option value="">-- Common Task --</option>
+                {% for project in projects %}
+                    <option value="{{ project.id }}" {% if entry.project and entry.project.id == project.id %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Task</label>
+            <select name="task" required>
+                {% for task in tasks %}
+                    <option value="{{ task.id }}" {% if entry.task.id == task.id %}selected{% endif %}>
+                        {{ task.task_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Hours Spent</label>
+            <input type="number" name="hours_spent" value="{{ entry.hours_spent }}" required>
+        </div>
+
+        <button type="submit" class="btn-save">Update</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-container {
+    max-width: 500px;
+    margin: 30px auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+.form-group select, .form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+.btn-save {
+    background: #27ae60;
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+}
+.btn-save:hover {
+    background: #1e874b;
+}
+</style>
+{% endblock %}

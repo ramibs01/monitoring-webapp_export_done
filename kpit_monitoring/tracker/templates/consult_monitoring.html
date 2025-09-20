@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Consult Monitoring{% endblock %}
+
+{% block content %}
+<div class="monitoring-container">
+  <h2>📊 Consult Monitoring</h2>
+
+  <!-- Export button -->
+  <div class="export-container">
+    <a href="{% url 'export_monitoring_excel' %}" class="btn-export">📤 Export Monitoring</a>
+  </div>
+
+  <!-- Form to select user & CW -->
+  <form method="POST" class="monitoring-form">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label>Select User</label>
+      <select name="user" required>
+        <option value="">-- Select User --</option>
+        {% for u in users %}
+          <option value="{{ u.id }}" {% if selected_user and selected_user.id == u.id %}selected{% endif %}>
+            {{ u.username }} ({{ u.role }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Select Calendar Week</label>
+      <select name="cw" required>
+        <option value="">-- Select CW --</option>
+        {% for cw in cws %}
+          <option value="{{ cw.id }}" {% if selected_cw and selected_cw.id == cw.id %}selected{% endif %}>
+            {{ cw.cw }} ({{ cw.month.month }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn-submit">View Monitoring</button>
+  </form>
+
+  {% if entries %}
+    <h3 style="margin-top:25px;">Results for {{ selected_user.username }} - CW {{ selected_cw.cw }}</h3>
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Task</th>
+          <th>Month</th>
+          <th>Hours Spent</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+          <tr>
+            <td>{% if entry.project %}{{ entry.project.name }}{% else %}Common Task{% endif %}</td>
+            <td>{{ entry.task.task_name }}</td>
+            <td>{{ entry.month.month }}</td>
+            <td>{{ entry.hours_spent }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" style="text-align:right; font-weight:bold;">Total Hours:</td>
+          <td style="font-weight:bold;">{{ total_hours }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  {% elif selected_user and selected_cw %}
+    <p style="margin-top:20px; color:#555;">No monitoring entries found for this user in CW {{ selected_cw.cw }}.</p>
+  {% endif %}
+</div>
+
+<style>
+.monitoring-container {
+  max-width: 800px;
+  margin: 50px auto;
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.monitoring-container h2 {
+  text-align: center;
+  margin-bottom: 25px;
+  color: #2c3e50;
+}
+
+.export-container {
+  text-align: right;
+  margin-bottom: 20px;
+}
+
+.btn-export {
+  background: #00b894;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.btn-export:hover {
+  background: #019875;
+}
+
+.monitoring-form .form-group {
+  margin-bottom: 18px;
+}
+
+label {
+  font-weight: bold;
+  margin-bottom: 6px;
+  display: block;
+  color: #34495e;
+}
+
+select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+.btn-submit {
+  background: #0984e3;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 16px;
+}
+
+.btn-submit:hover {
+  background: #0773c0;
+}
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 25px;
+}
+
+.styled-table th,
+.styled-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: center;
+}
+
+.styled-table th {
+  background: #0984e3;
+  color: white;
+  text-transform: uppercase;
+}
+
+.styled-table tr:hover {
+  background: #f9f9f9;
+}
+
+tfoot td {
+  background: #f1f1f1;
+}
+</style>
+{% endblock %}

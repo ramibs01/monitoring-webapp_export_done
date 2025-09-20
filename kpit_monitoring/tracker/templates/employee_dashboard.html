@@ -1,0 +1,31 @@
+{% extends "base_user.html" %}
+{% block title %}Tester Dashboard{% endblock %}
+{% block page_title %}Tester Dashboard{% endblock %}
+
+{% block content %}
+<h2>Welcome back, {{ request.user.username }} 👋</h2>
+
+<!-- Dashboard Cards -->
+
+
+<!-- Total Cards -->
+
+{% endblock %}
+{% block extra_css %}
+<style>
+h2 {
+  margin-bottom: 30px; /* Adjust the spacing as needed */
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+.card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Employee | KPIT Monitoring Tool{% endblock %}
+{% block page_title %}Edit Employee{% endblock %}
+
+{% block content %}
+<div class="content">
+  <form method="POST">
+    {% csrf_token %}
+    <h2>Edit Employee</h2>
+
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <p class="{{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <input type="text" name="username" placeholder="Username" value="{{ employee.username }}" required>
+    <input type="email" name="email" placeholder="Email" value="{{ employee.email }}" required>
+    <input type="password" name="password" placeholder="New Password (leave blank to keep current)">
+    <button type="submit">Update Employee</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .content { padding: 30px; max-width: 500px; margin: auto; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  form { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 3px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; }
+  form h2 { margin-bottom: 20px; color: #243b55; text-align: center; }
+  input { padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+  button { padding: 12px; border: none; border-radius: 8px; background: #00b894; color: #fff; font-size: 16px; cursor: pointer; }
+  .messages { margin-bottom: 15px; }
+  .messages p { padding: 10px; border-radius: 6px; }
+  .messages .error { background: #d63031; color: #fff; }
+  .messages .success { background: #00b894; color: #fff; }
+</style>
+{% endblock %}
