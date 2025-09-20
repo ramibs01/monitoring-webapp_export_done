@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from .models import User,UserProject,Month, CalendarWeek,Task,MonitoringEntry
+from .models import User,UserProject,Month, CalendarWeek,Task,MonitoringEntry,PlannedDedication
 from django.contrib import messages
 from django.db.models import Q
 from .models import Project
@@ -880,3 +880,127 @@ def consult_monitoring_cw(request):
             "has_entries": entries_qs.exists(),
         },
     )
+
+
+@login_required
+def planned_dedication_list(request):
+    dedications = PlannedDedication.objects.all().select_related("user", "project", "month")
+
+    # Apply filters
+    month_id = request.GET.get("month")
+    user_id = request.GET.get("user")
+    project_id = request.GET.get("project")
+    dedication_val = request.GET.get("dedication")
+
+    if month_id:
+        dedications = dedications.filter(month_id=month_id)
+    if user_id:
+        dedications = dedications.filter(user_id=user_id)
+    if project_id:
+        dedications = dedications.filter(project_id=project_id)
+    if dedication_val:
+        dedications = dedications.filter(planned_dedication=dedication_val)
+
+    context = {
+        "dedications": dedications,
+        "months": Month.objects.all(),
+        "users": User.objects.all(),
+        "projects": Project.objects.all(),
+    }
+    return render(request, "planned_dedication_list.html", context)
+
+
+@login_required
+def add_planned_dedication(request):
+    users = User.objects.all()
+    projects = Project.objects.all()
+    months = Month.objects.all()
+
+    if request.method == "POST":
+        user_id = request.POST.get("user")
+        project_id = request.POST.get("project")
+        month_id = request.POST.get("month")
+        dedication = request.POST.get("planned_dedication")
+
+        if user_id and project_id and month_id and dedication:
+            try:
+                dedication_value = int(dedication)
+                user = User.objects.get(id=user_id)
+                project = Project.objects.get(id=project_id)
+                month = Month.objects.get(id=month_id)
+
+                PlannedDedication.objects.create(
+                    user=user,
+                    project=project,
+                    month=month,
+                    planned_dedication=dedication_value,
+                )
+                messages.success(request, "Planned dedication added successfully.")
+                return redirect("planned_dedication_list")
+            except (ValueError, User.DoesNotExist, Project.DoesNotExist, Month.DoesNotExist):
+                messages.error(request, "Invalid data, please check your inputs.")
+        else:
+            messages.error(request, "All fields are required.")
+
+    return render(
+        request,
+        "add_planned_dedication.html",
+        {"users": users, "projects": projects, "months": months},
+    )
+
+from openpyxl.utils import get_column_letter
+@login_required
+@login_required
+def export_monthly_dedication(request):
+    months = Month.objects.all()
+
+    if request.method == "POST":
+        month_id = request.POST.get("month")
+        month_obj = Month.objects.get(id=month_id)
+
+        dedications = PlannedDedication.objects.filter(month_id=month_id).select_related("user", "project")
+
+        # Group dedications by project
+        grouped = defaultdict(list)
+        for d in dedications:
+            grouped[d.project.name].append(d)
+
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Monthly Dedications"
+
+        # Header
+        headers = ["Project", "KPIT Colleague", "Month", "Planned Dedication"]
+        ws.append(headers)
+
+        # Write data rows with merging
+        current_row = 2
+        for project_name, rows in grouped.items():
+            start_row = current_row
+            for d in rows:
+                ws.append([project_name, d.user.username, month_obj.month, d.planned_dedication])
+                current_row += 1
+            # Merge project column if more than one row
+            if len(rows) > 1:
+                ws.merge_cells(
+                    start_row=start_row,
+                    start_column=1,
+                    end_row=current_row - 1,
+                    end_column=1
+                )
+
+        # Adjust column widths
+        for i, col in enumerate(headers, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = 25
+
+        # Prepare response
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        filename = f"Monthly_Dedication_{month_obj.month}.xlsx"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
+
+    return render(request, "export_monthly_dedication.html", {"months": months})

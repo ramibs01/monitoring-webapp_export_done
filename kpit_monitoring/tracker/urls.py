@@ -36,5 +36,9 @@ urlpatterns = [
     path("user/delete-monitoring/<int:entry_id>/", views.user_delete_monitoring, name="user_delete_monitoring"),
     path('manager/edit-profile/', views.manager_edit_profile, name='manager_edit_profile'),
     path("consult-monitoring/cw/", views.consult_monitoring_cw, name="consult_monitoring_cw"),
+    path("planned-dedications/", views.planned_dedication_list, name="planned_dedication_list"),
+    # Placeholder for the future “Add” page
+    path("planned-dedications/add/", views.add_planned_dedication, name="add_planned_dedication"), 
+    path("planned/export/", views.export_monthly_dedication, name="export_monthly_dedication"),
     path('logout/', views.logout_view, name="logout"),
 ]

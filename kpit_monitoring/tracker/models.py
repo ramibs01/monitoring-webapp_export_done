@@ -109,3 +109,32 @@ class MonitoringEntry(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.task.task_name} - CW{self.cw.cw}"
+    
+class PlannedDedication(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="planned_dedications"
+    )
+    project = models.ForeignKey(
+        'Project',
+        on_delete=models.CASCADE,
+        related_name="planned_dedications"
+    )
+    month = models.ForeignKey(
+        'Month',
+        on_delete=models.CASCADE,
+        related_name="planned_dedications"
+    )
+    planned_dedication = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        help_text="Planned dedication in hours or % (choose your unit)."
+    )
+
+    class Meta:
+        unique_together = ('user', 'project', 'month')
+        verbose_name = "Planned Dedication"
+        verbose_name_plural = "Planned Dedications"
+
+    def __str__(self):
+        return f"{self.user.username} → {self.project.name} ({self.month.month}): {self.planned_dedication}"

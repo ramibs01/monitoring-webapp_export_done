@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Export Monthly Dedication | KPIT Monitoring Tool{% endblock %}
+{% block page_title %}Export Monthly Dedication{% endblock %}
+
+{% block content %}
+<div class="export-container">
+  <h2>Select Month to Export</h2>
+  <form method="post">
+    {% csrf_token %}
+    <select name="month" required>
+      <option value="">-- Choose a Month --</option>
+      {% for m in months %}
+        <option value="{{ m.id }}">{{ m.month }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn-export">Export Excel</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.export-container {
+  padding: 30px;
+}
+.export-container h2 {
+  margin-bottom: 20px;
+}
+select {
+  padding: 6px 12px;
+  margin-right: 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+.btn-export {
+  background: #0984e3;
+  color: white;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-export:hover { background: #0652DD; }
+</style>
+{% endblock %}
