@@ -20,6 +20,12 @@
     <input type="text" name="username" placeholder="Username" required>
     <input type="email" name="email" placeholder="Email" required>
     <input type="password" name="password" placeholder="Password" required>
+
+    <label class="checkbox-label">
+      <input type="checkbox" name="special_user">
+      Mark as Super User
+    </label>
+
     <button type="submit">Add Employee</button>
   </form>
 </div>
@@ -27,11 +33,49 @@
 
 {% block extra_css %}
 <style>
-  .content { padding: 30px; max-width: 500px; margin: auto; flex: 1; display: flex; flex-direction: column; justify-content: center; }
-  form { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 3px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; }
+  .content {
+    padding: 30px;
+    max-width: 500px;
+    margin: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  form {
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
   form h2 { margin-bottom: 20px; color: #243b55; text-align: center; }
-  input { padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
-  button { padding: 12px; border: none; border-radius: 8px; background: #00b894; color: #fff; font-size: 16px; cursor: pointer; }
+  input[type="text"],
+  input[type="email"],
+  input[type="password"] {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+  }
+  .checkbox-label {
+    font-size: 15px;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  button {
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #00b894;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+  }
   .messages { margin-bottom: 15px; }
   .messages p { padding: 10px; border-radius: 6px; }
   .messages .error { background: #d63031; color: #fff; }

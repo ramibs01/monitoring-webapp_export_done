@@ -76,20 +76,27 @@ def add_employee(request):
         username = request.POST.get("username")
         email = request.POST.get("email")
         password = request.POST.get("password")
+        is_special = request.POST.get("special_user") == "on"  # checkbox value
 
         if username and password and email:
             if User.objects.filter(username=username).exists():
                 messages.error(request, "Username already exists")
             else:
-                user = User.objects.create_user(username=username, email=email, password=password)
-                user.role = "employee"  # Set role to employee by default
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password
+                )
+                user.role = "employee"
+                user.special_user = 1 if is_special else 0
                 user.save()
-                #messages.success(request, f"Employee {username} added successfully")
+                messages.success(request, f"Employee {username} added successfully")
                 return redirect("manage_employees")
         else:
             messages.error(request, "Please fill all fields")
 
     return render(request, "add_employee.html")
+
 
 @login_required
 def edit_employee(request, user_id):
@@ -511,7 +518,7 @@ def export_monitoring_excel(request):
         try:
             month = Month.objects.get(id=month_id)
 
-            # ✅ 1) Exclude entries where the related Task is a common task
+            # 1️⃣ Exclude entries that belong to common tasks
             entries = (
                 MonitoringEntry.objects
                 .filter(month=month)
@@ -519,28 +526,36 @@ def export_monitoring_excel(request):
                 .select_related("project", "user", "task")
             )
 
-            # ✅ 2) Total worked hours per user (no common tasks)
+            # 2️⃣ Count number of CWs in the selected month
+            num_cws = CalendarWeek.objects.filter(month=month).count()
+
+            # 3️⃣ Total worked hours per user (excluding common tasks)
             user_totals_qs = (
-                entries.values("user__username")
-                .annotate(total=Sum("hours_spent"))
+                entries.values("user__id", "user__username", "user__special_user")
+                .annotate(total_hours=Sum("hours_spent"))
             )
             totals_map = {
-                row["user__username"]: float(row["total"] or 0)
+                row["user__id"]: {
+                    "username": row["user__username"],
+                    "total_hours": float(row["total_hours"] or 0),
+                    "special_user": row["user__special_user"]
+                }
                 for row in user_totals_qs
             }
 
-            # ✅ 3) Aggregate hours per project/user (already filtered)
+            # 4️⃣ Aggregate hours per project/user
             project_user_data = (
-                entries.values("project__name", "user__username")
-                .annotate(total_hours=Sum("hours_spent"))
+                entries.values("project__name", "user__id")
+                .annotate(project_hours=Sum("hours_spent"))
                 .order_by("project__name", "user__username")
             )
 
+            # 5️⃣ Group by project
             grouped = defaultdict(list)
             for row in project_user_data:
                 grouped[row["project__name"]].append(row)
 
-            # ✅ 4) Create Excel workbook
+            # 6️⃣ Create Excel workbook
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = f"Monitoring {month.month}"
@@ -554,25 +569,42 @@ def export_monitoring_excel(request):
             for project, rows in grouped.items():
                 start_row = current_row
                 for row in rows:
-                    colleague = row["user__username"]
-                    project_hours = float(row["total_hours"] or 0)
-                    user_total = totals_map.get(colleague, 0)
+                    user_info = totals_map[row["user__id"]]
+                    username = user_info["username"]
+                    project_hours = float(row["project_hours"] or 0)
+                    total_hours_user = user_info["total_hours"]
+                    special_user = user_info["special_user"]
+
+                    # ✅ Determine base hours for % calculation
+                    if special_user:
+                        # Super user
+                        if num_cws == 4:
+                            base_hours = 160
+                        elif num_cws == 5:
+                            base_hours = 200
+                        else:
+                            base_hours = total_hours_user  # fallback
+                    else:
+                        # Normal user
+                        base_hours = total_hours_user
 
                     percentage = 0
-                    if user_total > 0:
-                        raw_pct = (project_hours / user_total) * 100
+                    if base_hours > 0:
+                        raw_pct = (project_hours / base_hours) * 100
                         percentage = round(raw_pct / 5) * 5  # MROUND to nearest 5%
 
-                    ws.append([project, colleague, project_hours, month.month, f"{percentage}%"])
+                    ws.append([project, username, project_hours, month.month, f"{percentage}%"])
                     current_row += 1
 
                 if len(rows) > 1:
                     ws.merge_cells(
-                        start_row=start_row, start_column=1,
-                        end_row=current_row - 1, end_column=1
+                        start_row=start_row,
+                        start_column=1,
+                        end_row=current_row - 1,
+                        end_column=1
                     )
 
-            # ✅ 5) Return file
+            # 7️⃣ Return file
             response = HttpResponse(
                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
@@ -585,6 +617,9 @@ def export_monitoring_excel(request):
             pass
 
     return render(request, "export_monitoring.html", {"months": months})
+
+
+
 
 @login_required
 def user_monitoring_dashboard(request):

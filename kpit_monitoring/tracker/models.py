@@ -11,8 +11,12 @@ class User(AbstractUser):
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="employee")
 
+    # ➡️ New field
+    special_user = models.BooleanField(default=False)  # 0 = normal, 1 = special
+
     def __str__(self):
         return f"{self.username} ({self.role})"
+
 
 
 class Project(models.Model):
