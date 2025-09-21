@@ -90,7 +90,7 @@ def add_employee(request):
                 user.role = "employee"
                 user.special_user = 1 if is_special else 0
                 user.save()
-                messages.success(request, f"Employee {username} added successfully")
+                #messages.success(request, f"Employee {username} added successfully")
                 return redirect("manage_employees")
         else:
             messages.error(request, "Please fill all fields")
@@ -121,7 +121,7 @@ def edit_employee(request, user_id):
         if password:
             employee.set_password(password)  # important for Django auth
         employee.save()
-        #messages.success(request, "Employee updated successfully")
+        ##messages.success(request, "Employee updated successfully")
         return redirect("manage_employees")
 
     return render(request, "edit_employee.html", {"employee": employee})
@@ -134,7 +134,7 @@ def delete_employee(request, user_id):
     try:
         employee = User.objects.get(id=user_id, role="employee")
         employee.delete()
-        #messages.success(request, "Employee deleted successfully")
+        ##messages.success(request, "Employee deleted successfully")
     except User.DoesNotExist:
         messages.error(request, "Employee not found")
 
@@ -205,17 +205,29 @@ def delete_project(request, project_id):
     return redirect("manage_projects")
 
 @login_required
-
 def manage_resources(request):
     if request.user.role != "manager":
         return redirect("employee_dashboard")
 
+    # Get all users to populate the filter dropdown
+    users = User.objects.all()
+
     # Fetch resources with employee + project in one query
     resources = UserProject.objects.select_related("employee", "project").all()
-    
 
-    return render(request, "manage_resources.html", {"resources": resources})
+    # Apply user filter if selected
+    user_id = request.GET.get("user")
+    if user_id:
+        resources = resources.filter(employee_id=user_id)
 
+    context = {
+        "resources": resources,
+        "users": users
+    }
+    return render(request, "manage_resources.html", context)
+
+
+@login_required
 def add_assigned_resource(request):
     employees = User.objects.all()
     projects = Project.objects.all()
@@ -223,21 +235,22 @@ def add_assigned_resource(request):
     if request.method == "POST":
         employee_id = request.POST.get("employee")
         project_id = request.POST.get("project")
-        dedication = request.POST.get("dedication")
 
-        if employee_id and project_id and dedication:
+        if employee_id and project_id:
             try:
                 employee = User.objects.get(id=employee_id)
                 project = Project.objects.get(id=project_id)
 
-                # Save new assignment
-                UserProject.objects.create(
-                    employee=employee,
-                    project=project,
-                    dedication=dedication
-                )
+                # Only create with employee and project, no dedication
+                if UserProject.objects.filter(employee=employee, project=project).exists():
+                    messages.warning(request, "This resource is already assigned to the project.")
+                else:
+                    UserProject.objects.create(
+                        employee=employee,
+                        project=project
+                    )
+                    #messages.success(request, "Resource assigned successfully!")
 
-                messages.success(request, "Resource assigned successfully!")
                 return redirect("manage_resources")
             except Exception as e:
                 messages.error(request, f"Error: {str(e)}")
@@ -247,16 +260,35 @@ def add_assigned_resource(request):
         "projects": projects,
     })
 
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import UserProject, User, Project
 
-# List all resources
+@login_required
 def manage_resources(request):
+    if request.user.role != "manager":
+        return redirect("employee_dashboard")
+
+    # Get all users to populate the filter dropdown
+    users = User.objects.all()
+
+    # Fetch resources with employee + project in one query
     resources = UserProject.objects.select_related("employee", "project").all()
-    return render(request, "manage_resources.html", {"resources": resources})
+
+    # Apply user filter if selected
+    user_id = request.GET.get("user")
+    if user_id:
+        resources = resources.filter(employee_id=user_id)
+
+    context = {
+        "resources": resources,
+        "users": users
+    }
+    return render(request, "manage_resources.html", context)
 
 # Add new resource assignment
+@login_required
 def add_assigned_resource(request):
     employees = User.objects.all()
     projects = Project.objects.all()
@@ -264,41 +296,48 @@ def add_assigned_resource(request):
     if request.method == "POST":
         employee_id = request.POST.get("employee")
         project_id = request.POST.get("project")
-        dedication = request.POST.get("dedication")
 
-        employee = get_object_or_404(User, id=employee_id)
-        project = get_object_or_404(Project, id=project_id)
+        if employee_id and project_id:
+            try:
+                employee = User.objects.get(id=employee_id)
+                project = Project.objects.get(id=project_id)
 
-        UserProject.objects.create(
-            employee=employee,
-            project=project,
-            dedication=dedication
-        )
-        messages.success(request, "Resource assigned successfully.")
-        return redirect("manage_resources")
+                # Only create with employee and project, no dedication
+                if UserProject.objects.filter(employee=employee, project=project).exists():
+                    messages.warning(request, "This resource is already assigned to the project.")
+                else:
+                    UserProject.objects.create(
+                        employee=employee,
+                        project=project
+                    )
+                    #messages.success(request, "Resource assigned successfully!")
+
+                return redirect("manage_resources")
+            except Exception as e:
+                messages.error(request, f"Error: {str(e)}")
 
     return render(request, "add_assigned_resource.html", {
         "employees": employees,
-        "projects": projects
+        "projects": projects,
     })
 
+
 # Edit existing resource
+@login_required
 def edit_assigned_resource(request, resource_id):
     resource = get_object_or_404(UserProject, id=resource_id)
-    employees = User.objects.filter(role="employee")
+    employees = User.objects.all()
     projects = Project.objects.all()
 
     if request.method == "POST":
         employee_id = request.POST.get("employee")
         project_id = request.POST.get("project")
-        dedication = request.POST.get("dedication")
 
         resource.employee = get_object_or_404(User, id=employee_id)
         resource.project = get_object_or_404(Project, id=project_id)
-        resource.dedication = dedication
         resource.save()
 
-        messages.success(request, "Resource updated successfully.")
+        
         return redirect("manage_resources")
 
     return render(request, "edit_assigned_resource.html", {
@@ -311,7 +350,7 @@ def edit_assigned_resource(request, resource_id):
 def delete_assigned_resource(request, resource_id):
     resource = get_object_or_404(UserProject, id=resource_id)
     resource.delete()
-    messages.success(request, "Resource deleted successfully.")
+    ##messages.success(request, "Resource deleted successfully.")
     return redirect("manage_resources")
 
 def manage_cw(request):
@@ -368,7 +407,7 @@ def edit_task(request, task_id):
         task.task_name = task_name
         task.project = project
         task.save()
-        messages.success(request, "Task updated successfully!")
+        ##messages.success(request, "Task updated successfully!")
         return redirect('manage_tasks')
     
     return render(request, "edit_task.html", {"task": task, "projects": projects})
@@ -377,7 +416,7 @@ def edit_task(request, task_id):
 def delete_task(request, task_id):
     task = get_object_or_404(Task, id=task_id)
     task.delete()
-    messages.success(request, "Task deleted successfully!")
+    ##messages.success(request, "Task deleted successfully!")
     return redirect('manage_tasks')
 
 @login_required
@@ -701,7 +740,7 @@ def user_edit_profile(request):
             # Keep user logged in after password change
             update_session_auth_hash(request, user)
 
-        messages.success(request, "Profile updated successfully!")
+        ##messages.success(request, "Profile updated successfully!")
         return redirect('user_edit_profile')
 
     return render(request, 'user_edit_profile.html', {'user': user})
@@ -720,7 +759,7 @@ def edit_monitoring(request, entry_id):
         entry.hours_spent = hours_spent
         entry.save()
 
-        messages.success(request, "✅ Monitoring entry updated successfully.")
+        ##messages.success(request, "✅ Monitoring entry updated successfully.")
         return redirect("monitoring_dashboard")
 
     projects = Project.objects.all()
@@ -736,7 +775,7 @@ def edit_monitoring(request, entry_id):
 def delete_monitoring(request, entry_id):
     entry = get_object_or_404(MonitoringEntry, id=entry_id, user=request.user)
     entry.delete()
-    messages.success(request, "🗑️ Monitoring entry deleted successfully.")
+    ##messages.success(request, "🗑️ Monitoring entry deleted successfully.")
     return redirect("monitoring_dashboard")
 
 def user_edit_monitoring(request, entry_id):
@@ -757,7 +796,7 @@ def user_edit_monitoring(request, entry_id):
         entry.hours_spent = hours_spent
         entry.save()
 
-        messages.success(request, "Monitoring entry updated successfully.")
+        ##messages.success(request, "Monitoring entry updated successfully.")
         return redirect("user_monitoring_dashboard")
 
     context = {
@@ -774,7 +813,7 @@ def user_edit_monitoring(request, entry_id):
 def user_delete_monitoring(request, entry_id):
     entry = get_object_or_404(MonitoringEntry, id=entry_id, user=request.user)
     entry.delete()
-    messages.success(request, "Monitoring entry deleted successfully.")
+    ##messages.success(request, "Monitoring entry deleted successfully.")
     return redirect("user_monitoring_dashboard")
 
 @login_required
@@ -796,7 +835,7 @@ def manager_edit_profile(request):
 
         user.save()
 
-        messages.success(request, "Profile updated successfully!")
+        #messages.success(request, "Profile updated successfully!")
 
         # If password changed, log the user in again
         if password:

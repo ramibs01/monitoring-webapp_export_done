@@ -43,23 +43,14 @@ class UserProject(models.Model):
         on_delete=models.CASCADE,
         related_name="user_projects"
     )
-    dedication = models.PositiveIntegerField()  # dedication percentage (0–100)
 
     class Meta:
-        unique_together = ('employee', 'project')  # each employee can appear only once per project
-
-    def clean(self):
-        """Ensure employee dedication does not exceed 100% across all projects."""
-        total_dedication = (
-            UserProject.objects.filter(employee=self.employee)
-            .exclude(id=self.id)  # exclude current if updating
-            .aggregate(models.Sum("dedication"))["dedication__sum"] or 0
-        )
-        if total_dedication + self.dedication > 100:
-            raise ValidationError("Total dedication for this employee cannot exceed 100%.")
+        unique_together = ('employee', 'project')
 
     def __str__(self):
-        return f"{self.employee.username} → {self.project.name} ({self.dedication}%)"
+        return f"{self.employee.username} → {self.project.name}"
+
+
 
 class Month(models.Model):
     id = models.AutoField(primary_key=True)  # auto incremented id
