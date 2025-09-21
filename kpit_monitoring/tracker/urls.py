@@ -40,5 +40,8 @@ urlpatterns = [
     # Placeholder for the future “Add” page
     path("planned-dedications/add/", views.add_planned_dedication, name="add_planned_dedication"), 
     path("planned/export/", views.export_monthly_dedication, name="export_monthly_dedication"),
+    path('planned/edit/<int:pk>/', views.edit_planned_dedication, name='edit_planned_dedication'),
+    path("planned/delete/<int:pk>/", views.delete_planned_dedication, name="delete_planned_dedication"),
+    path("planned/export-overview/", views.export_overview_excel, name="export_overview_excel"),
     path('logout/', views.logout_view, name="logout"),
 ]

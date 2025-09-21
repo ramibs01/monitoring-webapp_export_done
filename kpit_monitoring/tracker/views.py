@@ -204,14 +204,15 @@ def delete_project(request, project_id):
 
     return redirect("manage_projects")
 
-
 @login_required
+
 def manage_resources(request):
     if request.user.role != "manager":
         return redirect("employee_dashboard")
 
     # Fetch resources with employee + project in one query
     resources = UserProject.objects.select_related("employee", "project").all()
+    
 
     return render(request, "manage_resources.html", {"resources": resources})
 
@@ -935,7 +936,7 @@ def add_planned_dedication(request):
                     month=month,
                     planned_dedication=dedication_value,
                 )
-                messages.success(request, "Planned dedication added successfully.")
+                
                 return redirect("planned_dedication_list")
             except (ValueError, User.DoesNotExist, Project.DoesNotExist, Month.DoesNotExist):
                 messages.error(request, "Invalid data, please check your inputs.")
@@ -949,58 +950,238 @@ def add_planned_dedication(request):
     )
 
 from openpyxl.utils import get_column_letter
-@login_required
+from openpyxl import Workbook
 @login_required
 def export_monthly_dedication(request):
     months = Month.objects.all()
 
     if request.method == "POST":
         month_id = request.POST.get("month")
-        month_obj = Month.objects.get(id=month_id)
+        try:
+            month_obj = Month.objects.get(id=month_id)
+        except Month.DoesNotExist:
+            return render(request, "export_monthly_dedication.html", {"months": months, "error": "Selected month does not exist."})
 
-        dedications = PlannedDedication.objects.filter(month_id=month_id).select_related("user", "project")
+        # 1️⃣ Fetch planned dedication
+        planned_qs = PlannedDedication.objects.filter(month=month_obj).select_related("user", "project")
 
-        # Group dedications by project
-        grouped = defaultdict(list)
-        for d in dedications:
-            grouped[d.project.name].append(d)
+        # 2️⃣ Fetch real dedication from MonitoringEntry
+        entries = (
+            MonitoringEntry.objects
+            .filter(month=month_obj)
+            .exclude(task__common_task=True)
+            .select_related("user", "project", "task")
+        )
+
+        num_cws = CalendarWeek.objects.filter(month=month_obj).count()
+
+        # Map total hours per user
+        totals_qs = entries.values("user__id", "user__username", "user__special_user").annotate(total_hours=Sum("hours_spent"))
+        totals_map = {
+            row["user__id"]: {
+                "username": row["user__username"],
+                "total_hours": float(row["total_hours"] or 0),
+                "special_user": row["user__special_user"]
+            }
+            for row in totals_qs
+        }
+
+        # Map hours per project/user
+        hours_qs = entries.values("project__id", "user__id", "project__name").annotate(project_hours=Sum("hours_spent"))
+        hours_map = {(row["project__id"], row["user__id"]): float(row["project_hours"] or 0) for row in hours_qs}
+
+        # Group by project for merging
+        projects_users_map = defaultdict(list)
+        all_keys = set(list(hours_map.keys()) + [(d.project.id, d.user.id) for d in planned_qs])
+        for project_id, user_id in all_keys:
+            projects_users_map[project_id].append(user_id)
 
         # Create workbook
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Monthly Dedications"
+        ws.title = f"Dedications {month_obj.month}"
 
-        # Header
-        headers = ["Project", "KPIT Colleague", "Month", "Planned Dedication"]
+        headers = ["Project", "KPIT Colleague", "Planned Dedication", "Real Dedication", "Month"]
         ws.append(headers)
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
 
-        # Write data rows with merging
         current_row = 2
-        for project_name, rows in grouped.items():
+        for project_id, user_ids in projects_users_map.items():
             start_row = current_row
-            for d in rows:
-                ws.append([project_name, d.user.username, month_obj.month, d.planned_dedication])
+            project_name = planned_qs.filter(project_id=project_id).first()
+            if project_name:
+                project_name = project_name.project.name
+            else:
+                any_hours_entry = next(((pid, uid) for (pid, uid) in hours_map if pid == project_id), None)
+                if any_hours_entry:
+                    project_name = MonitoringEntry.objects.filter(project_id=project_id).first().project.name
+                else:
+                    project_name = "Unknown Project"
+
+            for user_id in user_ids:
+                # Planned Dedication
+                planned_entry = planned_qs.filter(user_id=user_id, project_id=project_id).first()
+                planned_value = float(planned_entry.planned_dedication or 0) if planned_entry else 0
+
+                # Real Dedication
+                project_hours = hours_map.get((project_id, user_id), 0)
+                if user_id in totals_map:
+                    user_info = totals_map[user_id]
+                    total_hours_user = user_info["total_hours"]
+                    special_user = user_info["special_user"]
+                else:
+                    total_hours_user = project_hours
+                    special_user = False
+
+                # Calculate Real Dedication %
+                if special_user:
+                    if num_cws == 4:
+                        base_hours = 160
+                    elif num_cws == 5:
+                        base_hours = 200
+                    else:
+                        base_hours = total_hours_user
+                else:
+                    base_hours = total_hours_user
+
+                real_dedication = 0
+                if base_hours > 0:
+                    raw_pct = (project_hours / base_hours) * 100
+                    real_dedication = round(raw_pct / 5) * 5  # MROUND to nearest 5%
+
+                # Username
+                if user_id in totals_map:
+                    username = totals_map[user_id]["username"]
+                elif planned_entry:
+                    username = planned_entry.user.username
+                else:
+                    username = "Unknown"
+
+                ws.append([project_name, username, planned_value, f"{real_dedication}%", month_obj.month])
                 current_row += 1
-            # Merge project column if more than one row
-            if len(rows) > 1:
-                ws.merge_cells(
-                    start_row=start_row,
-                    start_column=1,
-                    end_row=current_row - 1,
-                    end_column=1
-                )
+
+            if len(user_ids) > 1:
+                ws.merge_cells(start_row=start_row, start_column=1, end_row=current_row - 1, end_column=1)
 
         # Adjust column widths
         for i, col in enumerate(headers, start=1):
             ws.column_dimensions[get_column_letter(i)].width = 25
 
         # Prepare response
-        response = HttpResponse(
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         filename = f"Monthly_Dedication_{month_obj.month}.xlsx"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
 
     return render(request, "export_monthly_dedication.html", {"months": months})
+
+@login_required
+def edit_planned_dedication(request, pk):
+    planned = get_object_or_404(PlannedDedication, id=pk)
+
+    if request.method == "POST":
+        user_id = request.POST.get("user")
+        project_id = request.POST.get("project")
+        month_id = request.POST.get("month")
+        planned_dedication_val = request.POST.get("planned_dedication")
+
+        # Validate and update
+        user = get_object_or_404(User, id=user_id)
+        project = get_object_or_404(Project, id=project_id)
+        month = get_object_or_404(Month, id=month_id)
+
+        planned.user = user
+        planned.project = project
+        planned.month = month
+        planned.planned_dedication = planned_dedication_val
+        planned.save()
+
+        return redirect("planned_dedication_list")
+
+    context = {
+        "planned": planned,
+        "users": User.objects.all(),
+        "projects": Project.objects.all(),
+        "months": Month.objects.all(),
+    }
+    return render(request, "edit_planned_dedication.html", context)
+
+@login_required
+def delete_planned_dedication(request, pk):
+    planned = get_object_or_404(PlannedDedication, id=pk)
+    planned.delete()
+    return redirect("planned_dedication_list")
+
+
+from django.db.models import Sum
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+@login_required
+
+def export_overview_excel(request):
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Planned Dedication Overview"
+
+    # Header row
+    months = Month.objects.order_by("id")
+    header = ["User"] + [m.month for m in months]
+    ws.append(header)
+
+    # Styles for header
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
+    center_align = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    for col_num, cell in enumerate(ws[1], 1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    # Rows: all employees
+    users = User.objects.filter(role="employee").order_by("username")
+    for user in users:
+        row = [user.username]
+        for month in months:
+            total = PlannedDedication.objects.filter(user=user, month=month).aggregate(
+                total=Sum("planned_dedication")
+            )["total"] or 0
+            row.append(total)
+        ws.append(row)
+
+    # Style usernames and values
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+        # Username bold
+        row[0].font = Font(bold=True)
+        row[0].alignment = Alignment(horizontal="left")
+        row[0].border = thin_border
+        # Center dedication values
+        for cell in row[1:]:
+            cell.alignment = center_align
+            cell.border = thin_border
+
+    # Adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[column].width = max_length + 4
+
+    # Response
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = 'attachment; filename="planned_dedication_overview.xlsx"'
+    wb.save(response)
+    return response
