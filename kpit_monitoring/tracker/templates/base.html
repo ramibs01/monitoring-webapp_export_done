@@ -170,11 +170,12 @@
     <div class="submenu">
       <a href="{% url 'consult_monitoring_cw' %}">📅 Per CW</a>
       <a href="{% url 'consult_monitoring' %}">👤 Per Employee</a>
+      <a href="{% url 'export_monitoring_excel' %}">📊 Export Monitoring</a>
     </div>
-
+    <a href="{% url 'planned_dedication_list' %}">👤 Manage Planned Dedication</a>
     <a href="{% url 'manage_cw' %}">🛠 Manage CW</a>
     <a href="{% url 'manage_tasks' %}">🛠 Manage Tasks</a>
-    <a href="{% url 'planned_dedication_list' %}">👤 Manage Planned Dedication</a>
+    
     <div class="logout">
       <a href="{% url 'logout' %}">🚪 <span>Logout</span></a>
     </div>

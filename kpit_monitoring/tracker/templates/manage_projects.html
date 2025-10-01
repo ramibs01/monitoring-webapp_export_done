@@ -57,7 +57,7 @@ tr:nth-child(even) {
   <table>
     <thead>
       <tr>
-        <th>ID</th>
+      <!--<th>ID</th>-->
         <th>Name</th>
         <th>Manager</th>
         <th>Actions</th>
@@ -66,7 +66,7 @@ tr:nth-child(even) {
     <tbody>
       {% for project in projects %}
       <tr>
-        <td>{{ project.id }}</td>
+      <!--<td>{{ project.id }}</td>-->
         <td>{{ project.name }}</td>
         <td>
           {% if project.manager %}

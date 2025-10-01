@@ -59,9 +59,9 @@
       <thead>
         <tr>
           <th>User</th>
-          <th>User ID</th>
+        <!--<th>User ID</th>-->
           <th>Project</th>
-          <th>Project ID</th>
+          <!--<th>Project ID</th>-->
           <th>Month</th>
           <th>Planned Dedication</th>
           <th>Actions</th>
@@ -72,9 +72,9 @@
           {% for d in dedications %}
             <tr>
               <td>{{ d.user.username }}</td>
-              <td>{{ d.user.id }}</td>
+              <!--<td>{{ d.user.id }}</td>-->
               <td>{{ d.project.name }}</td>
-              <td>{{ d.project.id }}</td>
+              <!--<td>{{ d.project.id }}</td>-->
               <td>{{ d.month.month }}</td>
               <td>{{ d.planned_dedication }}</td>
               <td>

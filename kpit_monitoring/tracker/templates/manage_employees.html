@@ -5,10 +5,12 @@
 
 {% block content %}
 <a href="{% url 'add_employee' %}" class="btn-add">+ Add Employee</a>
+<a href="{% url 'export_resources' %}" class="btn-export">⬇ Export Resources</a>
 
 <table>
   <thead>
     <tr>
+      <th></th>   <!-- Numbering column -->
       <th>Name</th>
       <th>Email</th>
       <th>Actions</th>
@@ -17,6 +19,7 @@
   <tbody>
     {% for employee in employees %}
     <tr>
+      <td>{{ forloop.counter }}</td> <!-- Auto numbering -->
       <td>{{ employee.username }}</td>
       <td>{{ employee.email }}</td>
       <td>
@@ -32,12 +35,51 @@
 
 {% block extra_css %}
 <style>
-  .btn-add { background: #00b894; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; display: inline-block; margin-bottom: 15px; }
-  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
-  th, td { padding: 15px; text-align: left; }
-  th { background: #00b894; color: #fff; }
-  tr:nth-child(even) { background: #f2f2f2; }
-  .btn { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; color: #fff; }
+  .btn-export { 
+    background: #00b894; 
+    color: #fff; 
+    padding: 10px 20px; 
+    border-radius: 8px; 
+    text-decoration: none; 
+    display: inline-block; 
+    margin-left: 10px;
+}
+.btn-export:hover { background: #00b894; }
+  .btn-add { 
+      background: #00b894; 
+      color: #fff; 
+      padding: 10px 20px; 
+      border-radius: 8px; 
+      text-decoration: none; 
+      display: inline-block; 
+      margin-bottom: 15px; 
+  }
+  table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      background: #fff; 
+      border-radius: 12px; 
+      overflow: hidden; 
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1); 
+  }
+  th, td { 
+      padding: 15px; 
+      text-align: left; 
+  }
+  th { 
+      background: #00b894; 
+      color: #fff; 
+  }
+  tr:nth-child(even) { 
+      background: #f2f2f2; 
+  }
+  .btn { 
+      padding: 8px 15px; 
+      border: none; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      color: #fff; 
+  }
   .btn-edit { background: #0984e3; }
   .btn-delete { background: #d63031; }
 </style>

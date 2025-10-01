@@ -58,7 +58,7 @@ def manage_employees(request):
     if request.user.role != "manager":
         return redirect("employee_dashboard")
 
-    employees = User.objects.filter(role="employee")
+    employees = User.objects.all()   # ✅ now fetches all users
     employees_count = employees.count()
 
     return render(request, "manage_employees.html", {
@@ -74,28 +74,32 @@ def add_employee(request):
 
     if request.method == "POST":
         username = request.POST.get("username")
+        first_name = request.POST.get("first_name")
+        last_name = request.POST.get("last_name")
         email = request.POST.get("email")
         password = request.POST.get("password")
-        is_special = request.POST.get("special_user") == "on"  # checkbox value
+        is_special = request.POST.get("special_user") == "on"  # checkbox
 
-        if username and password and email:
+        if username and password and email and first_name and last_name:
             if User.objects.filter(username=username).exists():
                 messages.error(request, "Username already exists")
             else:
                 user = User.objects.create_user(
                     username=username,
                     email=email,
-                    password=password
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
                 )
                 user.role = "employee"
                 user.special_user = 1 if is_special else 0
                 user.save()
-                #messages.success(request, f"Employee {username} added successfully")
                 return redirect("manage_employees")
         else:
             messages.error(request, "Please fill all fields")
 
     return render(request, "add_employee.html")
+
 
 
 @login_required
@@ -1222,5 +1226,46 @@ def export_overview_excel(request):
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response["Content-Disposition"] = 'attachment; filename="planned_dedication_overview.xlsx"'
+    wb.save(response)
+    return response
+
+@login_required
+def export_resources(request):
+    # Create workbook and sheet
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Users"
+
+    # Define header style
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+
+    # Headers
+    headers = ["First Name", "Last Name"]
+    ws.append(headers)
+
+    # Apply style to header row
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+
+    # Fetch users and add rows
+    users = User.objects.all().values_list("first_name", "last_name")
+    for user in users:
+        ws.append(user)
+
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 20
+
+    # Prepare response for download
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response['Content-Disposition'] = 'attachment; filename="resources.xlsx"'
+
     wb.save(response)
     return response
