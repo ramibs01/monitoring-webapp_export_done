@@ -957,40 +957,46 @@ def planned_dedication_list(request):
 @login_required
 def add_planned_dedication(request):
     users = User.objects.all()
-    projects = Project.objects.all()
+    all_projects = Project.objects.all()
     months = Month.objects.all()
+
+    # Ensure months are in calendar order
+    MONTH_ORDER = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ]
+    months = sorted(months, key=lambda m: MONTH_ORDER.index(m.month))
 
     if request.method == "POST":
         user_id = request.POST.get("user")
-        project_id = request.POST.get("project")
-        month_id = request.POST.get("month")
-        dedication = request.POST.get("planned_dedication")
+        user = User.objects.get(id=user_id)
 
-        if user_id and project_id and month_id and dedication:
-            try:
-                dedication_value = int(dedication)
-                user = User.objects.get(id=user_id)
+        # Loop over all submitted project blocks
+        for key in request.POST:
+            if key.startswith("project_"):
+                project_idx = key.split("_")[1]
+                project_id = request.POST.get(f"project_{project_idx}")
                 project = Project.objects.get(id=project_id)
-                month = Month.objects.get(id=month_id)
 
-                PlannedDedication.objects.create(
-                    user=user,
-                    project=project,
-                    month=month,
-                    planned_dedication=dedication_value,
-                )
-                
-                return redirect("planned_dedication_list")
-            except (ValueError, User.DoesNotExist, Project.DoesNotExist, Month.DoesNotExist):
-                messages.error(request, "Invalid data, please check your inputs.")
-        else:
-            messages.error(request, "All fields are required.")
+                for month in months:
+                    dedication_val = request.POST.get(f"dedication_{project_idx}_{month.id}")
+                    if dedication_val:
+                        PlannedDedication.objects.create(
+                            user=user,
+                            project=project,
+                            month=month,
+                            planned_dedication=int(dedication_val)
+                        )
+        return redirect("planned_dedication_list")
 
     return render(
         request,
         "add_planned_dedication.html",
-        {"users": users, "projects": projects, "months": months},
+        {"users": users, "all_projects": all_projects, "months": months}
     )
+
+
+
 
 from openpyxl.utils import get_column_letter
 from openpyxl import Workbook
@@ -1164,7 +1170,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 def export_overview_excel(request):
     # Create workbook
-    wb = openpyxl.Workbook()
+    wb = Workbook()
     ws = wb.active
     ws.title = "Planned Dedication Overview"
 
@@ -1173,7 +1179,7 @@ def export_overview_excel(request):
     header = ["User"] + [m.month for m in months]
     ws.append(header)
 
-    # Styles for header
+    # Styles
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
     center_align = Alignment(horizontal="center", vertical="center")
@@ -1183,8 +1189,10 @@ def export_overview_excel(request):
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
+    red_fill = PatternFill(start_color="FF6B6B", end_color="FF6B6B", fill_type="solid")  # red background
 
-    for col_num, cell in enumerate(ws[1], 1):
+    # Style header
+    for cell in ws[1]:
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = center_align
@@ -1201,16 +1209,19 @@ def export_overview_excel(request):
             row.append(total)
         ws.append(row)
 
-    # Style usernames and values
+    # Apply styles to data cells
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-        # Username bold
-        row[0].font = Font(bold=True)
-        row[0].alignment = Alignment(horizontal="left")
-        row[0].border = thin_border
-        # Center dedication values
+        username_cell = row[0]
+        username_cell.font = Font(bold=True)
+        username_cell.alignment = Alignment(horizontal="left")
+        username_cell.border = thin_border
+
         for cell in row[1:]:
             cell.alignment = center_align
             cell.border = thin_border
+            # Highlight in red if total is not 100
+            if isinstance(cell.value, (int, float)) and cell.value != 100:
+                cell.fill = red_fill
 
     # Adjust column widths
     for col in ws.columns:
@@ -1267,5 +1278,59 @@ def export_resources(request):
     )
     response['Content-Disposition'] = 'attachment; filename="resources.xlsx"'
 
+    wb.save(response)
+    return response
+
+def export_projects_excel(request):
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Projects"
+
+    # Add header
+    ws.append(["Project"])
+
+    # Header style
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
+    center_align = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin")
+    )
+
+    header_cell = ws["A1"]
+    header_cell.font = header_font
+    header_cell.fill = header_fill
+    header_cell.alignment = center_align
+    header_cell.border = thin_border
+
+    # Add all projects
+    projects = Project.objects.all().order_by("name")
+    for project in projects:
+        ws.append([project.name])
+
+    # Style project names
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=1):
+        cell = row[0]
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        cell.border = thin_border
+
+    # Auto width
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[column_letter].width = max_length + 5
+
+    # Response
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = 'attachment; filename="projects_list.xlsx"'
     wb.save(response)
     return response

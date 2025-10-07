@@ -30,9 +30,9 @@
     <table>
       <thead>
         <tr>
-          <th>User ID</th>
+          <!--<th>User ID</th>--->
           <th>Username</th>
-          <th>Project ID</th>
+          <!--<th>Project ID</th>-->
           <th>Project Name</th>
           <th>Actions</th>
         </tr>
@@ -41,9 +41,9 @@
         {% if resources %}
           {% for resource in resources %}
             <tr>
-              <td>{{ resource.employee.id }}</td>
+              <!--<td>{{ resource.employee.id }}</td>--->
               <td>{{ resource.employee.username }}</td>
-              <td>{{ resource.project.id }}</td>
+              <!--<td>{{ resource.project.id }}</td>--->
               <td>{{ resource.project.name }}</td>
               <td class="action-col">
                 <a href="{% url 'edit_assigned_resource' resource.id %}" class="btn-edit">✏️ Edit</a>

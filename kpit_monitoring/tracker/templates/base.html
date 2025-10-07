@@ -162,17 +162,25 @@
     <a href="{% url 'manager_edit_profile' %}">👥 <span>Edit Profile</span></a>
     <a href="{% url 'manage_employees' %}">👥 <span>Manage Testers</span></a>
     <a href="{% url 'manage_projects' %}">📂 <span>Manage Projects</span></a>
-    <a href="{% url 'manage_resources' %}">🛠 Manage Assigned Resources</a>
+    
     <a href="{% url 'monitoring_dashboard' %}">📝 <span>Monitoring Dashboard</span></a>
 
-    <!-- New Consult Monitoring with submenu -->
+    <!-- Consult Monitoring submenu -->
     <a class="has-submenu">📊 <span>Consult Monitoring ▾</span></a>
     <div class="submenu">
       <a href="{% url 'consult_monitoring_cw' %}">📅 Per CW</a>
       <a href="{% url 'consult_monitoring' %}">👤 Per Employee</a>
       <a href="{% url 'export_monitoring_excel' %}">📊 Export Monitoring</a>
     </div>
-    <a href="{% url 'planned_dedication_list' %}">👤 Manage Planned Dedication</a>
+
+    <!-- Manage Planned Dedication submenu -->
+    <a class="has-submenu">👤 <span>Manage Planned Dedication ▾</span></a>
+    <div class="submenu">
+      <a href="{% url 'manage_resources' %}">🛠 Tester-Project Link</a>
+      <a href="{% url 'planned_dedication_list' %}">📋 Planned Dedication List</a>
+      
+    </div>
+
     <a href="{% url 'manage_cw' %}">🛠 Manage CW</a>
     <a href="{% url 'manage_tasks' %}">🛠 Manage Tasks</a>
     
@@ -199,13 +207,15 @@
   </div>
 
   <script>
-    // Toggle submenu
+    // Toggle all submenus
     document.addEventListener('DOMContentLoaded', () => {
-      const toggle = document.querySelector('.has-submenu');
-      toggle.addEventListener('click', () => {
-        toggle.classList.toggle('active');
+      document.querySelectorAll('.has-submenu').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+          toggle.classList.toggle('active');
+        });
       });
     });
   </script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

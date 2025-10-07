@@ -44,5 +44,6 @@ urlpatterns = [
     path("planned/delete/<int:pk>/", views.delete_planned_dedication, name="delete_planned_dedication"),
     path("planned/export-overview/", views.export_overview_excel, name="export_overview_excel"),
     path("export-resources/", views.export_resources, name="export_resources"),
+    path("export-projects/", views.export_projects_excel, name="export_projects_excel"),
     path('logout/', views.logout_view, name="logout"),
 ]
