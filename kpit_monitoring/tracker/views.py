@@ -358,7 +358,12 @@ def delete_assigned_resource(request, resource_id):
     return redirect("manage_resources")
 
 def manage_cw(request):
-    months = Month.objects.all()
+    MONTH_ORDER = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ]
+    months = list(Month.objects.all())
+    months.sort(key=lambda m: MONTH_ORDER.index(m.month))
     calendar_weeks = CalendarWeek.objects.all()
 
     if request.method == "POST":
@@ -555,12 +560,19 @@ def consult_monitoring(request):
 from collections import defaultdict
 @login_required
 def export_monitoring_excel(request):
-    months = Month.objects.all()
+    #months = Month.objects.all()
+    MONTH_ORDER = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ]
+    months = list(Month.objects.all())
+    months.sort(key=lambda m: MONTH_ORDER.index(m.month))
     month_id = request.GET.get("month")
 
     if month_id:
         try:
             month = Month.objects.get(id=month_id)
+            
 
             # 1️⃣ Exclude entries that belong to common tasks
             entries = (
@@ -925,6 +937,9 @@ def consult_monitoring_cw(request):
         },
     )
 
+from collections import defaultdict, OrderedDict
+
+
 
 @login_required
 def planned_dedication_list(request):
@@ -945,13 +960,22 @@ def planned_dedication_list(request):
     if dedication_val:
         dedications = dedications.filter(planned_dedication=dedication_val)
 
+    # Manual month ordering
+    MONTH_ORDER = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ]
+    months = list(Month.objects.all())
+    months.sort(key=lambda m: MONTH_ORDER.index(m.month))
+
     context = {
         "dedications": dedications,
-        "months": Month.objects.all(),
+        "months": months,
         "users": User.objects.all(),
         "projects": Project.objects.all(),
     }
     return render(request, "planned_dedication_list.html", context)
+
 
 
 @login_required
