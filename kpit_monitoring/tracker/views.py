@@ -13,6 +13,8 @@ from django.db.models import Sum
 import os
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
+from django.db import models
+
 
 
 def login_view(request):
@@ -265,6 +267,7 @@ def add_assigned_resource(request):
     })
 
 
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import UserProject, User, Project
@@ -513,19 +516,19 @@ def monitoring_dashboard(request):
         },
     )
 
-@login_required
+
 @login_required
 def consult_monitoring(request):
-    # Only managers can access
+    # Restrict access to managers
     if request.user.role != "manager":
         return redirect("monitoring_dashboard")
 
     users = User.objects.all().order_by("username")
     cws = CalendarWeek.objects.select_related("month").all()
-    entries = None
+    entries = []
     selected_user = None
     selected_cw = None
-    total_hours = 0  # ✅ new
+    total_hours = 0
 
     if request.method == "POST":
         user_id = request.POST.get("user")
@@ -534,14 +537,43 @@ def consult_monitoring(request):
         if user_id and cw_id:
             selected_user = User.objects.get(id=user_id)
             selected_cw = CalendarWeek.objects.get(id=cw_id)
-            entries = (
+
+            # ✅ 1. Get all monitoring entries filled by this user in that CW
+            filled_entries = (
                 MonitoringEntry.objects
                 .filter(user=selected_user, cw=selected_cw)
                 .select_related("task", "project", "month")
             )
 
-            # ✅ Calculate total hours
-            total_hours = entries.aggregate(total=Sum("hours_spent"))["total"] or 0
+            # ✅ 2. Get all projects linked to the user
+            linked_projects = Project.objects.filter(user_projects__employee=selected_user)
+
+            # ✅ 3. Get all tasks from those projects + all common tasks
+            all_tasks = Task.objects.filter(
+                models.Q(project__in=linked_projects) | models.Q(common_task=True)
+            ).select_related("project")
+
+            # ✅ 4. Map filled tasks by ID for quick lookup
+            filled_map = {entry.task.id: entry for entry in filled_entries}
+
+            # ✅ 5. Combine filled + not-filled (linked + common tasks)
+            entries = []
+            total_hours = 0
+
+            for task in all_tasks:
+                if task.id in filled_map:
+                    entry = filled_map[task.id]
+                    entries.append(entry)
+                    total_hours += entry.hours_spent
+                else:
+                    # Not filled → show as 0 hours
+                    entries.append({
+                        "task": task,
+                        "project": task.project,
+                        "month": selected_cw.month,
+                        "hours_spent": 0,
+                        "is_unfilled": True  # flag for styling in template
+                    })
 
     return render(
         request,
@@ -552,27 +584,28 @@ def consult_monitoring(request):
             "entries": entries,
             "selected_user": selected_user,
             "selected_cw": selected_cw,
-            "total_hours": total_hours,  # ✅ pass to template
+            "total_hours": total_hours,
         },
     )
-
 
 from collections import defaultdict
 @login_required
 def export_monitoring_excel(request):
-    #months = Month.objects.all()
+    # Define month order
     MONTH_ORDER = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     ]
+    
+    # Get all months and sort
     months = list(Month.objects.all())
     months.sort(key=lambda m: MONTH_ORDER.index(m.month))
+    
     month_id = request.GET.get("month")
 
     if month_id:
         try:
             month = Month.objects.get(id=month_id)
-            
 
             # 1️⃣ Exclude entries that belong to common tasks
             entries = (
@@ -587,12 +620,12 @@ def export_monitoring_excel(request):
 
             # 3️⃣ Total worked hours per user (excluding common tasks)
             user_totals_qs = (
-                entries.values("user__id", "user__username", "user__special_user")
+                entries.values("user__id", "user__first_name", "user__last_name", "user__username", "user__special_user")
                 .annotate(total_hours=Sum("hours_spent"))
             )
             totals_map = {
                 row["user__id"]: {
-                    "username": row["user__username"],
+                    "username": f"{row['user__first_name']} {row['user__last_name']}".strip() or row.get('user__username', ''),
                     "total_hours": float(row["total_hours"] or 0),
                     "special_user": row["user__special_user"]
                 }
@@ -603,7 +636,7 @@ def export_monitoring_excel(request):
             project_user_data = (
                 entries.values("project__name", "user__id")
                 .annotate(project_hours=Sum("hours_spent"))
-                .order_by("project__name", "user__username")
+                .order_by("project__name", "user__id")
             )
 
             # 5️⃣ Group by project
@@ -616,7 +649,8 @@ def export_monitoring_excel(request):
             ws = wb.active
             ws.title = f"Monitoring {month.month}"
 
-            headers = ["Project", "KPIT Colleague", "Hours", "Month", "%"]
+            # Header
+            headers = ["Project", "Full Name", "Hours", "Month", "%"]
             ws.append(headers)
             for cell in ws[1]:
                 cell.font = Font(bold=True)
@@ -652,6 +686,7 @@ def export_monitoring_excel(request):
                     ws.append([project, username, project_hours, month.month, f"{percentage}%"])
                     current_row += 1
 
+                # Merge project cells if multiple users
                 if len(rows) > 1:
                     ws.merge_cells(
                         start_row=start_row,
@@ -673,6 +708,7 @@ def export_monitoring_excel(request):
             pass
 
     return render(request, "export_monitoring.html", {"months": months})
+
 
 
 
@@ -871,7 +907,13 @@ def consult_monitoring_cw(request):
     - Merge 'User' column
     - Add total hours per user
     """
-    cws = CalendarWeek.objects.all().order_by("cw")
+    # Define the fixed CW order
+    CW_ORDER = [f"CW{i}" for i in range(1, 53)]  # CW1 → CW52
+
+    # Retrieve all CWs and manually sort using CW_ORDER
+    cws = list(CalendarWeek.objects.all())
+    cws.sort(key=lambda cw: CW_ORDER.index(cw.cw) if cw.cw in CW_ORDER else 999)
+
     selected_cw = request.GET.get("cw")
 
     entries_qs = MonitoringEntry.objects.none()
@@ -888,7 +930,6 @@ def consult_monitoring_cw(request):
             )
 
             if entries_qs.exists():
-                # Build rows with rowspan and total hours
                 buffer = []
                 current_user = None
                 count = 0
@@ -896,7 +937,6 @@ def consult_monitoring_cw(request):
 
                 for entry in entries_qs:
                     if current_user != entry.user.username:
-                        # flush previous buffer
                         if buffer:
                             for i, e in enumerate(buffer):
                                 rows.append({
@@ -904,7 +944,6 @@ def consult_monitoring_cw(request):
                                     "rowspan": count if i == 0 else 0,
                                     "total_hours": user_total_hours if i == 0 else 0
                                 })
-                        # reset for new user
                         buffer = [entry]
                         current_user = entry.user.username
                         count = 1
@@ -914,7 +953,6 @@ def consult_monitoring_cw(request):
                         count += 1
                         user_total_hours += entry.hours_spent
 
-                # flush last buffer
                 if buffer:
                     for i, e in enumerate(buffer):
                         rows.append({
@@ -967,6 +1005,12 @@ def planned_dedication_list(request):
     ]
     months = list(Month.objects.all())
     months.sort(key=lambda m: MONTH_ORDER.index(m.month))
+
+    # 🧩 Sort dedications by user username and month order
+    dedications = sorted(
+        dedications,
+        key=lambda d: (d.user.username.lower(), MONTH_ORDER.index(d.month.month))
+    )
 
     context = {
         "dedications": dedications,
@@ -1027,6 +1071,14 @@ from openpyxl import Workbook
 @login_required
 def export_monthly_dedication(request):
     months = Month.objects.all()
+    MONTH_ORDER = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ]
+    
+    # Get all months and sort
+    months = list(Month.objects.all())
+    months.sort(key=lambda m: MONTH_ORDER.index(m.month))
 
     if request.method == "POST":
         month_id = request.POST.get("month")
@@ -1049,10 +1101,11 @@ def export_monthly_dedication(request):
         num_cws = CalendarWeek.objects.filter(month=month_obj).count()
 
         # Map total hours per user
-        totals_qs = entries.values("user__id", "user__username", "user__special_user").annotate(total_hours=Sum("hours_spent"))
+        totals_qs = entries.values("user__id", "user__first_name", "user__last_name", "user__username", "user__special_user")\
+            .annotate(total_hours=Sum("hours_spent"))
         totals_map = {
             row["user__id"]: {
-                "username": row["user__username"],
+                "username": f"{row['user__first_name']} {row['user__last_name']}".strip() or row.get("user__username", ""),
                 "total_hours": float(row["total_hours"] or 0),
                 "special_user": row["user__special_user"]
             }
@@ -1074,7 +1127,7 @@ def export_monthly_dedication(request):
         ws = wb.active
         ws.title = f"Dedications {month_obj.month}"
 
-        headers = ["Project", "KPIT Colleague", "Planned Dedication", "Real Dedication", "Month"]
+        headers = ["Project", "Full Name", "Planned Dedication", "Real Dedication", "Month"]
         ws.append(headers)
         for cell in ws[1]:
             cell.font = Font(bold=True)
@@ -1082,9 +1135,9 @@ def export_monthly_dedication(request):
         current_row = 2
         for project_id, user_ids in projects_users_map.items():
             start_row = current_row
-            project_name = planned_qs.filter(project_id=project_id).first()
-            if project_name:
-                project_name = project_name.project.name
+            project_name_obj = planned_qs.filter(project_id=project_id).first()
+            if project_name_obj:
+                project_name = project_name_obj.project.name
             else:
                 any_hours_entry = next(((pid, uid) for (pid, uid) in hours_map if pid == project_id), None)
                 if any_hours_entry:
@@ -1103,7 +1156,13 @@ def export_monthly_dedication(request):
                     user_info = totals_map[user_id]
                     total_hours_user = user_info["total_hours"]
                     special_user = user_info["special_user"]
+                    username = user_info["username"]
+                elif planned_entry:
+                    username = f"{planned_entry.user.first_name} {planned_entry.user.last_name}".strip() or planned_entry.user.username
+                    total_hours_user = project_hours
+                    special_user = False
                 else:
+                    username = "Unknown"
                     total_hours_user = project_hours
                     special_user = False
 
@@ -1122,14 +1181,6 @@ def export_monthly_dedication(request):
                 if base_hours > 0:
                     raw_pct = (project_hours / base_hours) * 100
                     real_dedication = round(raw_pct / 5) * 5  # MROUND to nearest 5%
-
-                # Username
-                if user_id in totals_map:
-                    username = totals_map[user_id]["username"]
-                elif planned_entry:
-                    username = planned_entry.user.username
-                else:
-                    username = "Unknown"
 
                 ws.append([project_name, username, planned_value, f"{real_dedication}%", month_obj.month])
                 current_row += 1

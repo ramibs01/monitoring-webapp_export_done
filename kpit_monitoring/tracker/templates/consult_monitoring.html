@@ -41,7 +41,7 @@
   </form>
 
   {% if entries %}
-    <h3 style="margin-top:25px;">Results for {{ selected_user.username }} - CW {{ selected_cw.cw }}</h3>
+    <h3 style="margin-top:25px;">Results for {{ selected_user.username }} -  {{ selected_cw.cw }}</h3>
     <table class="styled-table">
       <thead>
         <tr>
@@ -69,7 +69,7 @@
       </tfoot>
     </table>
   {% elif selected_user and selected_cw %}
-    <p style="margin-top:20px; color:#555;">No monitoring entries found for this user in CW {{ selected_cw.cw }}.</p>
+    <p style="margin-top:20px; color:#555;">No monitoring entries found for this user in  {{ selected_cw.cw }}.</p>
   {% endif %}
 </div>
 
