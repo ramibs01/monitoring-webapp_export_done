@@ -14,7 +14,7 @@ urlpatterns = [
     path("manage-projects/edit/<int:project_id>/", views.edit_project, name="edit_project"),
     path("manage-projects/delete/<int:project_id>/", views.delete_project, name="delete_project"),
     path("manage-resources/", views.manage_resources, name="manage_resources"),
-    path("add_assigned_resource/", views.add_assigned_resource, name="add_assigned_resource"),
+    path("resources/add/", views.add_assigned_resource, name="add_assigned_resource"),
     path("resources/edit/<int:resource_id>/", views.edit_assigned_resource, name="edit_assigned_resource"),
     path("resources/delete/<int:resource_id>/", views.delete_assigned_resource, name="delete_assigned_resource"),
     path("manage-cw/", views.manage_cw, name="manage_cw"),
@@ -45,5 +45,7 @@ urlpatterns = [
     path("planned/export-overview/", views.export_overview_excel, name="export_overview_excel"),
     path("export-resources/", views.export_resources, name="export_resources"),
     path("export-projects/", views.export_projects_excel, name="export_projects_excel"),
+    path('get_user_projects/', views.get_user_projects, name='get_user_projects'),
+    path('user/consult-planned-dedication/', views.employee_consult_planned_dedication, name='employee_consult_planned_dedication'),
     path('logout/', views.logout_view, name="logout"),
 ]

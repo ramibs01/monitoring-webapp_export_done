@@ -1,0 +1,131 @@
+{% extends "base_user.html" %}
+
+{% block title %}Consult Planned Dedication | KPIT Monitoring Tool{% endblock %}
+{% block page_title %}Consult Planned Dedication{% endblock %}
+
+{% block content %}
+<div class="filter-container">
+  <form method="get" style="display:flex; flex-wrap:wrap; gap:15px; align-items:flex-end;">
+    <div>
+      <label for="project">Project:</label>
+      <select name="project" id="project">
+        <option value="all">All</option>
+        {% for p in user_projects %}
+          <option value="{{ p.id }}" {% if selected_project == p.id|stringformat:"s" %}selected{% endif %}>
+            {{ p.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="month">Month:</label>
+      <select name="month" id="month">
+        <option value="all">All</option>
+        {% for m_name in month_order %}
+          {% for m in months %}
+            {% if m.month == m_name %}
+              <option value="{{ m.id }}" {% if selected_month == m.id|stringformat:"s" %}selected{% endif %}>
+                {{ m.month }}
+              </option>
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <button type="submit">Filter</button>
+    </div>
+  </form>
+</div>
+
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Month</th>
+        <th>Planned Dedication (%)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in dedications %}
+        <tr>
+          <td>{{ d.project.name }}</td>
+          <td>{{ d.month.month }}</td>
+          <td>{{ d.planned_dedication }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">No planned dedications found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Filter Form */
+.filter-container label {
+    font-weight:bold;
+    margin-right:5px;
+}
+.filter-container select {
+    padding:6px 10px;
+    border-radius:5px;
+    border:1px solid #ccc;
+    font-size:14px;
+}
+.filter-container button {
+    background:#00b894;
+    color:#fff;
+    border:none;
+    padding:6px 14px;
+    border-radius:5px;
+    cursor:pointer;
+    font-size:14px;
+}
+.filter-container button:hover { background:#019172; }
+
+/* Table Container with scroll */
+.table-container {
+    display:block;
+    max-height:400px;       /* vertical scroll */
+    overflow-x:auto;        /* horizontal scroll */
+    overflow-y:auto;        /* vertical scroll */
+    margin-top:20px;
+    border:1px solid #ccc;
+    border-radius:8px;
+}
+
+/* Table Styles */
+table {
+    width:100%;
+    border-collapse:collapse;
+    min-width:600px;
+    background:#fff;
+}
+thead {
+    background:#00b894;
+    color:#fff;
+    position: sticky; /* sticky header */
+    top: 0;
+    z-index: 1;
+}
+th, td {
+    padding:12px 15px;
+    text-align:center;
+    white-space: nowrap;
+    border-bottom:1px solid #eee;
+}
+tbody tr:nth-child(even) { background:#f7f7f7; }
+tbody tr:hover { background:#e0f7f1; }
+
+/* Responsive adjustments */
+@media (max-width:768px) {
+    table { min-width:500px; }
+}
+@media (max-width:500px) {
+    table { min-width:400px; }
+}
+</style>
+{% endblock %}

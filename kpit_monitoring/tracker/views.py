@@ -233,6 +233,7 @@ def manage_resources(request):
     return render(request, "manage_resources.html", context)
 
 
+
 @login_required
 def add_assigned_resource(request):
     employees = User.objects.all()
@@ -265,6 +266,8 @@ def add_assigned_resource(request):
         "employees": employees,
         "projects": projects,
     })
+
+
 
 
 
@@ -1021,48 +1024,85 @@ def planned_dedication_list(request):
     return render(request, "planned_dedication_list.html", context)
 
 
-
 @login_required
 def add_planned_dedication(request):
-    users = User.objects.all()
-    all_projects = Project.objects.all()
-    months = Month.objects.all()
-
-    # Ensure months are in calendar order
     MONTH_ORDER = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     ]
-    months = sorted(months, key=lambda m: MONTH_ORDER.index(m.month))
+
+    users = User.objects.all()
+    months = list(Month.objects.all())
+    months.sort(key=lambda m: MONTH_ORDER.index(m.month))
 
     if request.method == "POST":
-        user_id = request.POST.get("user")
-        user = User.objects.get(id=user_id)
+        user_id = request.POST.get('user')
+        if not user_id:
+            messages.error(request, "Please select a user.")
+            return redirect("add_planned_dedication")
 
-        # Loop over all submitted project blocks
-        for key in request.POST:
-            if key.startswith("project_"):
-                project_idx = key.split("_")[1]
-                project_id = request.POST.get(f"project_{project_idx}")
-                project = Project.objects.get(id=project_id)
+        user = get_object_or_404(User, id=user_id)
 
-                for month in months:
-                    dedication_val = request.POST.get(f"dedication_{project_idx}_{month.id}")
-                    if dedication_val:
-                        PlannedDedication.objects.create(
-                            user=user,
-                            project=project,
-                            month=month,
-                            planned_dedication=int(dedication_val)
-                        )
+        for key, value in request.POST.items():
+            if key.startswith("dedication_"):  # e.g., dedication_0_1
+                try:
+                    dedication_val = int(value)
+                except ValueError:
+                    messages.error(request, "Dedication must be a number.")
+                    return redirect("add_planned_dedication")
+
+                # Extract project index and month id from key
+                _, project_index, month_id = key.split("_")
+                month = get_object_or_404(Month, id=month_id)
+
+                # Get project id from hidden input in the same index
+                project_key = f"project_{project_index}"
+                project_id = request.POST.get(project_key)
+                if not project_id:
+                    messages.error(request, "Project not found for dedication input.")
+                    return redirect("add_planned_dedication")
+                project = get_object_or_404(Project, id=project_id)
+
+                # Calculate existing dedication for this user and month
+                existing_total = PlannedDedication.objects.filter(
+                    user=user, month=month
+                ).aggregate(total=models.Sum("planned_dedication"))["total"] or 0
+
+                if existing_total + dedication_val > 100:
+                    messages.error(
+                        request,
+                        f"Total dedication for {month.month} cannot exceed 100% (currently: {existing_total}%)."
+                    )
+                    return redirect("add_planned_dedication")
+
+                # Save the dedication with project
+                PlannedDedication.objects.create(
+                    user=user,
+                    project=project,
+                    month=month,
+                    planned_dedication=dedication_val
+                )
+
+        messages.success(request, f"Planned dedication added for {user.username}.")
         return redirect("planned_dedication_list")
 
-    return render(
-        request,
-        "add_planned_dedication.html",
-        {"users": users, "all_projects": all_projects, "months": months}
-    )
+    # GET request
+    context = {
+        "users": users,
+        "months": months,
+    }
+    return render(request, "add_planned_dedication.html", context)
 
+# AJAX endpoint: get projects assigned to a user
+@login_required
+def get_user_projects(request):
+    user_id = request.GET.get("user_id")
+    projects = []
+    if user_id:
+        user_projects = UserProject.objects.filter(employee_id=user_id).select_related("project")
+        for up in user_projects:
+            projects.append({"id": up.project.id, "name": up.project.name})
+    return JsonResponse({"projects": projects})
 
 
 
@@ -1409,3 +1449,47 @@ def export_projects_excel(request):
     response["Content-Disposition"] = 'attachment; filename="projects_list.xlsx"'
     wb.save(response)
     return response
+
+
+
+MONTH_ORDER = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+]
+
+@login_required
+def employee_consult_planned_dedication(request):
+    user = request.user
+
+    # Get user's assigned projects
+    user_projects = [up.project for up in user.user_projects.all()]
+
+    # All months
+    months = Month.objects.all()
+
+    # Filters
+    selected_project = request.GET.get("project", "all")
+    selected_month = request.GET.get("month", "all")
+
+    dedications = PlannedDedication.objects.filter(user=user)
+
+    if selected_project != "all":
+        dedications = dedications.filter(project_id=selected_project)
+    if selected_month != "all":
+        dedications = dedications.filter(month_id=selected_month)
+
+    # Order months using MONTH_ORDER
+    dedications = sorted(
+        dedications,
+        key=lambda d: MONTH_ORDER.index(d.month.month) if d.month.month in MONTH_ORDER else 12
+    )
+
+    context = {
+        "user_projects": user_projects,
+        "months": months,
+        "month_order": MONTH_ORDER,
+        "dedications": dedications,
+        "selected_project": selected_project,
+        "selected_month": selected_month,
+    }
+    return render(request, "employee_consult_planned_dedication.html", context)
