@@ -652,9 +652,10 @@ def export_monitoring_excel(request):
             ws = wb.active
             ws.title = f"Monitoring {month.month}"
 
-            # Header
-            headers = ["Project", "Full Name", "Hours", "Month", "%"]
+            # 🔹 UPDATED HEADER: Month BEFORE Hours
+            headers = ["Project", "Full Name", "Month", "Hours", "%"]
             ws.append(headers)
+
             for cell in ws[1]:
                 cell.font = Font(bold=True)
 
@@ -668,28 +669,26 @@ def export_monitoring_excel(request):
                     total_hours_user = user_info["total_hours"]
                     special_user = user_info["special_user"]
 
-                    # ✅ Determine base hours for % calculation
+                    # Base hours for percentage
                     if special_user:
-                        # Super user
                         if num_cws == 4:
                             base_hours = 160
                         elif num_cws == 5:
                             base_hours = 200
                         else:
-                            base_hours = total_hours_user  # fallback
+                            base_hours = total_hours_user
                     else:
-                        # Normal user
                         base_hours = total_hours_user
 
                     percentage = 0
                     if base_hours > 0:
-                        raw_pct = (project_hours / base_hours) * 100
-                        percentage = round(raw_pct / 5) * 5  # MROUND to nearest 5%
+                        percentage = round(((project_hours / base_hours) * 100) / 5) * 5
 
-                    ws.append([project, username, project_hours, month.month, f"{percentage}%"])
+                    # 🔹 UPDATED ROW FORMAT: Month BEFORE Hours
+                    ws.append([project, username, month.month, project_hours, f"{percentage}%"])
                     current_row += 1
 
-                # Merge project cells if multiple users
+                # Merge project cells
                 if len(rows) > 1:
                     ws.merge_cells(
                         start_row=start_row,
@@ -698,7 +697,7 @@ def export_monitoring_excel(request):
                         end_column=1
                     )
 
-            # 7️⃣ Return file
+            # 7️⃣ Return Excel file
             response = HttpResponse(
                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
@@ -711,6 +710,7 @@ def export_monitoring_excel(request):
             pass
 
     return render(request, "export_monitoring.html", {"months": months})
+
 
 
 
@@ -1140,12 +1140,15 @@ def export_monthly_dedication(request):
 
         num_cws = CalendarWeek.objects.filter(month=month_obj).count()
 
-        # Map total hours per user
-        totals_qs = entries.values("user__id", "user__first_name", "user__last_name", "user__username", "user__special_user")\
-            .annotate(total_hours=Sum("hours_spent"))
+        # Total hours per user
+        totals_qs = entries.values(
+            "user__id", "user__first_name", "user__last_name",
+            "user__username", "user__special_user"
+        ).annotate(total_hours=Sum("hours_spent"))
+
         totals_map = {
             row["user__id"]: {
-                "username": f"{row['user__first_name']} {row['user__last_name']}".strip() or row.get("user__username", ""),
+                "username": f"{row['user__first_name']} {row['user__last_name']}".strip() or row["user__username"],
                 "total_hours": float(row["total_hours"] or 0),
                 "special_user": row["user__special_user"]
             }
@@ -1156,9 +1159,10 @@ def export_monthly_dedication(request):
         hours_qs = entries.values("project__id", "user__id", "project__name").annotate(project_hours=Sum("hours_spent"))
         hours_map = {(row["project__id"], row["user__id"]): float(row["project_hours"] or 0) for row in hours_qs}
 
-        # Group by project for merging
+        # Group users under each project
         projects_users_map = defaultdict(list)
         all_keys = set(list(hours_map.keys()) + [(d.project.id, d.user.id) for d in planned_qs])
+
         for project_id, user_id in all_keys:
             projects_users_map[project_id].append(user_id)
 
@@ -1167,14 +1171,18 @@ def export_monthly_dedication(request):
         ws = wb.active
         ws.title = f"Dedications {month_obj.month}"
 
-        headers = ["Project", "Full Name", "Planned Dedication", "Real Dedication", "Month"]
+        # 🔹 HEADER (unchanged)
+        headers = ["Project", "Full Name", "Month", "Planned Dedication", "Real Dedication"]
         ws.append(headers)
         for cell in ws[1]:
             cell.font = Font(bold=True)
 
         current_row = 2
+
         for project_id, user_ids in projects_users_map.items():
             start_row = current_row
+
+            # Get project name
             project_name_obj = planned_qs.filter(project_id=project_id).first()
             if project_name_obj:
                 project_name = project_name_obj.project.name
@@ -1186,53 +1194,64 @@ def export_monthly_dedication(request):
                     project_name = "Unknown Project"
 
             for user_id in user_ids:
-                # Planned Dedication
+
+                # Planned
                 planned_entry = planned_qs.filter(user_id=user_id, project_id=project_id).first()
                 planned_value = float(planned_entry.planned_dedication or 0) if planned_entry else 0
 
-                # Real Dedication
+                # Real
                 project_hours = hours_map.get((project_id, user_id), 0)
+
                 if user_id in totals_map:
                     user_info = totals_map[user_id]
-                    total_hours_user = user_info["total_hours"]
-                    special_user = user_info["special_user"]
                     username = user_info["username"]
+                    total_hours = user_info["total_hours"]
+                    special_user = user_info["special_user"]
                 elif planned_entry:
                     username = f"{planned_entry.user.first_name} {planned_entry.user.last_name}".strip() or planned_entry.user.username
-                    total_hours_user = project_hours
+                    total_hours = project_hours
                     special_user = False
                 else:
                     username = "Unknown"
-                    total_hours_user = project_hours
+                    total_hours = project_hours
                     special_user = False
 
-                # Calculate Real Dedication %
+                # % Calculation
                 if special_user:
                     if num_cws == 4:
                         base_hours = 160
                     elif num_cws == 5:
                         base_hours = 200
                     else:
-                        base_hours = total_hours_user
+                        base_hours = total_hours
                 else:
-                    base_hours = total_hours_user
+                    base_hours = total_hours
 
-                real_dedication = 0
                 if base_hours > 0:
-                    raw_pct = (project_hours / base_hours) * 100
-                    real_dedication = round(raw_pct / 5) * 5  # MROUND to nearest 5%
+                    real_pct = round(((project_hours / base_hours) * 100) / 5) * 5
+                else:
+                    real_pct = 0
 
-                ws.append([project_name, username, planned_value, f"{real_dedication}%", month_obj.month])
+                # 🔹 BOTH planned and real dedication now include %  
+                ws.append([
+                    project_name,
+                    username,
+                    month_obj.month,
+                    f"{planned_value}%",     # ← ADDED %
+                    f"{real_pct}%",          # Already had %
+                ])
+
                 current_row += 1
 
+            # Merge project name cells
             if len(user_ids) > 1:
                 ws.merge_cells(start_row=start_row, start_column=1, end_row=current_row - 1, end_column=1)
 
-        # Adjust column widths
+        # Column widths
         for i, col in enumerate(headers, start=1):
             ws.column_dimensions[get_column_letter(i)].width = 25
 
-        # Prepare response
+        # Return file
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         filename = f"Monthly_Dedication_{month_obj.month}.xlsx"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -1240,6 +1259,8 @@ def export_monthly_dedication(request):
         return response
 
     return render(request, "export_monthly_dedication.html", {"months": months})
+
+
 
 @login_required
 def edit_planned_dedication(request, pk):
@@ -1493,3 +1514,13 @@ def employee_consult_planned_dedication(request):
         "selected_month": selected_month,
     }
     return render(request, "employee_consult_planned_dedication.html", context)
+
+
+def clear_all_planned_dedications(request):
+    try:
+        PlannedDedication.objects.all().delete()
+        #messages.success(request, "All planned dedications have been deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Error deleting records: {str(e)}")
+
+    return redirect("planned_dedication_list")

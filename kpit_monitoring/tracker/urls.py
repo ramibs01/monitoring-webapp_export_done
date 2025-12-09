@@ -47,5 +47,6 @@ urlpatterns = [
     path("export-projects/", views.export_projects_excel, name="export_projects_excel"),
     path('get_user_projects/', views.get_user_projects, name='get_user_projects'),
     path('user/consult-planned-dedication/', views.employee_consult_planned_dedication, name='employee_consult_planned_dedication'),
+    path("planned-dedications/clear-all/", views.clear_all_planned_dedications, name="clear_all_planned_dedications"),
     path('logout/', views.logout_view, name="logout"),
 ]
