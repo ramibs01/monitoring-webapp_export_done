@@ -48,5 +48,6 @@ urlpatterns = [
     path('get_user_projects/', views.get_user_projects, name='get_user_projects'),
     path('user/consult-planned-dedication/', views.employee_consult_planned_dedication, name='employee_consult_planned_dedication'),
     path("planned-dedications/clear-all/", views.clear_all_planned_dedications, name="clear_all_planned_dedications"),
+    path("monitoring/export-annual/", views.export_annual_monitoring_excel, name="export_annual_monitoring"),
     path('logout/', views.logout_view, name="logout"),
 ]

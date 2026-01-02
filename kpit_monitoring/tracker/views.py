@@ -1303,8 +1303,10 @@ def delete_planned_dedication(request, pk):
 from django.db.models import Sum
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 @login_required
-
 def export_overview_excel(request):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
     # Create workbook
     wb = Workbook()
     ws = wb.active
@@ -1312,7 +1314,7 @@ def export_overview_excel(request):
 
     # Header row
     months = Month.objects.order_by("id")
-    header = ["User"] + [m.month for m in months]
+    header = ["Full Name"] + [m.month for m in months]
     ws.append(header)
 
     # Styles
@@ -1325,7 +1327,7 @@ def export_overview_excel(request):
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
-    red_fill = PatternFill(start_color="FF6B6B", end_color="FF6B6B", fill_type="solid")  # red background
+    red_fill = PatternFill(start_color="FF6B6B", end_color="FF6B6B", fill_type="solid")
 
     # Style header
     for cell in ws[1]:
@@ -1335,38 +1337,58 @@ def export_overview_excel(request):
         cell.border = thin_border
 
     # Rows: all employees
-    users = User.objects.filter(role="employee").order_by("username")
+    users = User.objects.filter(role="employee").order_by("first_name", "last_name")
+
     for user in users:
-        row = [user.username]
+        # FULL NAME SAME AS MONITORING EXPORT
+        full_name = f"{user.first_name} {user.last_name}".strip()
+        if not full_name:
+            full_name = user.username
+
+        row = [full_name]
+
         for month in months:
-            total = PlannedDedication.objects.filter(user=user, month=month).aggregate(
-                total=Sum("planned_dedication")
-            )["total"] or 0
-            row.append(total)
+            total = PlannedDedication.objects.filter(
+                user=user, month=month
+            ).aggregate(total=Sum("planned_dedication"))["total"] or 0
+
+            # Add % like the monitoring export
+            cell_value = f"{total}%" if isinstance(total, (int, float)) else total
+            row.append(cell_value)
+
         ws.append(row)
 
     # Apply styles to data cells
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-        username_cell = row[0]
-        username_cell.font = Font(bold=True)
-        username_cell.alignment = Alignment(horizontal="left")
-        username_cell.border = thin_border
+
+        # Style full name
+        name_cell = row[0]
+        name_cell.font = Font(bold=True)
+        name_cell.alignment = Alignment(horizontal="left")
+        name_cell.border = thin_border
 
         for cell in row[1:]:
             cell.alignment = center_align
             cell.border = thin_border
-            # Highlight in red if total is not 100
-            if isinstance(cell.value, (int, float)) and cell.value != 100:
+
+            # Extract numeric value before the %
+            try:
+                numeric = float(str(cell.value).replace("%", ""))
+            except:
+                numeric = 0
+
+            # Highlight in red if different from 100%
+            if numeric != 100:
                 cell.fill = red_fill
 
     # Adjust column widths
     for col in ws.columns:
-        max_length = 0
+        max_len = 0
         column = col[0].column_letter
         for cell in col:
             if cell.value:
-                max_length = max(max_length, len(str(cell.value)))
-        ws.column_dimensions[column].width = max_length + 4
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[column].width = max_len + 4
 
     # Response
     response = HttpResponse(
@@ -1375,6 +1397,7 @@ def export_overview_excel(request):
     response["Content-Disposition"] = 'attachment; filename="planned_dedication_overview.xlsx"'
     wb.save(response)
     return response
+
 
 @login_required
 def export_resources(request):
@@ -1524,3 +1547,159 @@ def clear_all_planned_dedications(request):
         messages.error(request, f"Error deleting records: {str(e)}")
 
     return redirect("planned_dedication_list")
+
+
+
+@login_required
+def export_annual_monitoring_excel(request):
+    from collections import defaultdict
+    from django.http import HttpResponse
+    from django.db.models import Sum
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment
+
+    MONTH_ORDER = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ]
+
+    month_ids = request.GET.getlist("months")
+
+    # Show form if no months selected
+    if not month_ids:
+        months = list(Month.objects.all())
+        months.sort(key=lambda m: MONTH_ORDER.index(m.month))
+        return render(request, "export_annual_monitoring.html", {"months": months})
+
+    # Sort selected months chronologically
+    months = list(Month.objects.filter(id__in=month_ids))
+    months.sort(key=lambda m: MONTH_ORDER.index(m.month))
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Annual Monitoring"
+
+    # =========================
+    # HEADER
+    # =========================
+    headers = ["Project", "Full Name"]
+    for month in months:
+        headers.extend([f"{month.month} Hours", f"{month.month} %"])
+
+    ws.append(headers)
+
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # =========================
+    # DATA COLLECTION
+    # =========================
+    # Structure:
+    # {(project, user): {month_name: (hours, percent)}}
+    data = defaultdict(dict)
+
+    for month in months:
+        entries = (
+            MonitoringEntry.objects
+            .filter(month=month)
+            .exclude(task__common_task=True)
+            .select_related("project", "user")
+        )
+
+        num_cws = CalendarWeek.objects.filter(month=month).count()
+
+        user_totals = (
+            entries.values("user__id", "user__special_user")
+            .annotate(total_hours=Sum("hours_spent"))
+        )
+
+        totals_map = {
+            u["user__id"]: {
+                "total_hours": float(u["total_hours"] or 0),
+                "special_user": u["user__special_user"]
+            }
+            for u in user_totals
+        }
+
+        project_user_hours = (
+            entries.values(
+                "project__name",
+                "user__id",
+                "user__first_name",
+                "user__last_name",
+                "user__username"
+            )
+            .annotate(project_hours=Sum("hours_spent"))
+        )
+
+        for row in project_user_hours:
+            project = row["project__name"]
+            user_id = row["user__id"]
+            full_name = (
+                f"{row['user__first_name']} {row['user__last_name']}".strip()
+                or row["user__username"]
+            )
+
+            project_hours = float(row["project_hours"] or 0)
+            total_hours = totals_map[user_id]["total_hours"]
+            special_user = totals_map[user_id]["special_user"]
+
+            if special_user:
+                base_hours = 160 if num_cws == 4 else 200 if num_cws == 5 else total_hours
+            else:
+                base_hours = total_hours
+
+            percent = 0
+            if base_hours > 0:
+                percent = round(((project_hours / base_hours) * 100) / 5) * 5
+
+            data[(project, full_name)][month.month] = (project_hours, f"{percent}%")
+
+    # =========================
+    # WRITE ROWS
+    # =========================
+    current_row = 2
+    for (project, user), month_values in sorted(data.items()):
+        row = [project, user]
+
+        for month in months:
+            hours, percent = month_values.get(month.month, ("", ""))
+            row.extend([hours, percent])
+
+        ws.append(row)
+        current_row += 1
+
+    # =========================
+    # MERGE PROJECT CELLS
+    # =========================
+    start_row = 2
+    current_project = ws.cell(row=2, column=1).value
+
+    for r in range(3, ws.max_row + 1):
+        if ws.cell(row=r, column=1).value != current_project:
+            if r - start_row > 1:
+                ws.merge_cells(start_row=start_row, start_column=1,
+                               end_row=r - 1, end_column=1)
+            current_project = ws.cell(row=r, column=1).value
+            start_row = r
+
+    if ws.max_row - start_row >= 1:
+        ws.merge_cells(start_row=start_row, start_column=1,
+                       end_row=ws.max_row, end_column=1)
+
+    # Center merged project cells
+    for r in range(2, ws.max_row + 1):
+        ws.cell(row=r, column=1).alignment = Alignment(vertical="center")
+
+    # =========================
+    # RESPONSE
+    # =========================
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = 'attachment; filename="Annual_Monitoring.xlsx"'
+    wb.save(response)
+    return response
+
+

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block page_title %}Export Annual Monitoring{% endblock %}
+
+{% block content %}
+<div class="export-container">
+
+    <div class="export-card">
+        <h2>📊 Export Annual Monitoring</h2>
+        <p class="subtitle">
+            Select one or multiple months and download the monitoring report as an Excel file.
+        </p>
+
+        <form method="get" action="{% url 'export_annual_monitoring' %}">
+            <div class="months-grid">
+                {% for m in months %}
+                    <label class="month-item">
+                        <input type="checkbox" name="months" value="{{ m.id }}">
+                        <span>{{ m.month }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="btn-export">
+                ⬇ Export Monitoring
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Page container */
+.export-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 30px;
+}
+
+/* Card */
+.export-card {
+    background: #ffffff;
+    padding: 30px 35px;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Title */
+.export-card h2 {
+    margin-bottom: 8px;
+    color: #243b55;
+    font-size: 22px;
+    text-align: center;
+}
+
+/* Subtitle */
+.subtitle {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+/* Months grid */
+.months-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+/* Checkbox item */
+.month-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #f4f6f9;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+    font-size: 15px;
+}
+
+.month-item:hover {
+    background: #e9eef4;
+    transform: translateY(-1px);
+}
+
+.month-item input[type="checkbox"] {
+    transform: scale(1.2);
+    accent-color: #4CAF50;
+    cursor: pointer;
+}
+
+/* Export button */
+.btn-export {
+    width: 100%;
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: #ffffff;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-export:hover {
+    background: linear-gradient(135deg, #45a049, #3e8e41);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+    transform: translateY(-1px);
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+    .months-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .export-card {
+        padding: 25px 20px;
+    }
+}
+</style>
+{% endblock %}
